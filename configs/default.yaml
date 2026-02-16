@@ -1,0 +1,109 @@
+# ============================================================
+# Language-Conditioned Racing Agent — Default Configuration
+# ============================================================
+
+# --- CARLA Server ---
+carla:
+  host: "localhost"
+  port: 2000
+  timeout: 30.0
+  town: "Town04"            # Highway-like map, good for racing
+  weather: "ClearNoon"
+  fixed_delta_seconds: 0.05 # 20 FPS simulation tick
+
+# --- Sensors ---
+sensors:
+  lidar:
+    channels: 1             # Single-plane 2D-like LiDAR
+    range: 50.0             # meters
+    points_per_second: 56000
+    rotation_frequency: 20
+    upper_fov: 0.0
+    lower_fov: 0.0
+    n_beams: 1080           # Angular bins after processing
+    position:               # Relative to vehicle
+      x: 0.0
+      y: 0.0
+      z: 2.4
+
+# --- Vehicle ---
+vehicle:
+  blueprint: "vehicle.tesla.model3"
+  max_speed: 40.0           # m/s (~144 km/h)
+
+# --- Observation Space ---
+observation:
+  lidar_dim: 1080           # Processed LiDAR range array
+  command_dim: 384           # MiniLM embedding dimension
+  vehicle_state_dim: 5       # speed, accel, steer, yaw_rate, distance
+
+# --- Action Space ---
+action:
+  steering_range: [-1.0, 1.0]
+  throttle_range: [-1.0, 1.0]  # negative = brake
+
+# --- Reward ---
+rewards:
+  progress_weight: 1.0
+  speed_weight: 0.5
+  smoothness_weight: 0.3
+  collision_penalty: -100.0
+  lane_deviation_weight: 0.2
+  max_speed: 40.0              # Must match vehicle.max_speed for normalization
+  # Per-command multipliers (override default weights)
+  command_modifiers:
+    aggressive:
+      speed_weight: 1.5
+      smoothness_weight: 0.1
+    conservative:
+      speed_weight: 0.2
+      smoothness_weight: 1.0
+    defensive:
+      lane_deviation_weight: 0.8
+      speed_weight: 0.3
+    neutral:
+      # Use defaults
+      pass: true
+
+# --- Training ---
+training:
+  algorithm: "PPO"
+  total_timesteps: 2_000_000
+  learning_rate: 3.0e-4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  # Curriculum: when to introduce each command category
+  curriculum:
+    neutral_from_step: 0
+    aggressive_from_step: 200_000
+    defensive_from_step: 400_000
+    conservative_from_step: 400_000
+  # Logging & checkpointing
+  checkpoint_freq: 50_000
+  log_dir: "logs/"
+  checkpoint_dir: "checkpoints/"
+
+# --- Model Architecture ---
+model:
+  lidar_cnn:
+    channels: [64, 128, 256]
+    kernel_sizes: [7, 5, 3]
+    strides: [4, 2, 2]
+  command_mlp:
+    hidden_dim: 128
+  fusion_mlp:
+    hidden_dims: [256, 128]
+  features_dim: 128          # Final feature vector size
+
+# --- Evaluation ---
+evaluation:
+  n_episodes: 50
+  deterministic: true
+  save_trajectories: true

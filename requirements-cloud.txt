@@ -1,0 +1,9 @@
+# Include local requirements
+-r requirements.txt
+
+# CARLA simulator client
+carla==0.9.15
+
+# CARLA dependencies
+pygame
+opencv-python
