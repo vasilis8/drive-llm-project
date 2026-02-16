@@ -1,0 +1,197 @@
+% ============================================================
+% Language-Conditioned Racing Agent — Semester Project Report
+% ============================================================
+\documentclass[12pt,a4paper]{article}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+% \addbibresource{references.bib}  % Uncomment when you have references
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black,
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    framerule=0pt,
+    breaklines=true,
+    columns=fullflexible,
+}
+
+% ---- Title ----
+\title{%
+    \textbf{Language-Conditioned Racing Agent}\\[0.5em]
+    \large Mapping Natural Language Commands to Continuous Vehicle Control\\[0.3em]
+    \normalsize Semester Project — Autonomous Agents
+}
+\author{
+    Vasilis K.\\
+    \texttt{vasilis@example.com}  % TODO: Replace with your email
+}
+\date{February 2026}
+
+% ============================================================
+\begin{document}
+\maketitle
+
+% ---- Abstract ----
+\begin{abstract}
+This report presents the design, implementation, and evaluation of a
+\emph{Language-Conditioned Racing Agent} that maps natural language commands
+(e.g., ``Push for overtake'', ``Conserve tires'') and raw 2D LiDAR
+scans to continuous steering and velocity outputs. The architecture
+combines a pre-trained Transformer-based instruction encoder with a
+LiDAR perception network, fused into a Proximal Policy Optimization
+(PPO) policy trained in the CARLA simulator. We demonstrate that the
+agent can adapt its driving behaviour in response to different
+high-level strategic commands.
+
+% TODO: Update with actual results once training is complete.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+In high-performance autonomous racing, agents typically optimise a
+static objective such as minimum lap time. However, dynamic race
+scenarios require adaptable strategies triggered by high-level
+instructions—for example, \emph{``Defend the inside line''},
+\emph{``Push for overtake''}, or \emph{``Conserve tires''}. This
+project proposes and develops a \textbf{Language-Conditioned Racing
+Agent} that learns to interpret such commands and adjust its driving
+policy accordingly.
+
+The key research question is: \emph{Can we train a reinforcement
+learning agent that modulates its racing strategy in real-time based on
+natural language instructions, while maintaining safe and performant
+vehicle control?}
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+
+% TODO: Add related work references
+\subsection{Autonomous Racing}
+% Discuss F1TENTH, autonomous racing approaches, etc.
+
+\subsection{Language-Conditioned Reinforcement Learning}
+% Discuss works on language-grounded RL, instruction following, etc.
+
+\subsection{Multimodal Perception for Driving}
+% Discuss LiDAR-based perception, sensor fusion approaches, etc.
+
+% ============================================================
+\section{Approach}
+\label{sec:approach}
+
+\subsection{System Overview}
+The proposed architecture consists of three main components:
+
+\begin{enumerate}
+    \item \textbf{Instruction Encoder:} A pre-trained Transformer model
+        (\texttt{all-MiniLM-L6-v2}) that encodes natural language
+        commands into a fixed-size semantic embedding.
+    \item \textbf{Perception Network:} An MLP / 1D-CNN that processes
+        raw LiDAR range data to extract track boundary and obstacle
+        features.
+    \item \textbf{PPO Policy:} A reinforcement learning policy that
+        takes the concatenated state
+        $[\mathbf{z}_{\text{lidar}} \oplus \mathbf{z}_{\text{cmd}}]$
+        and outputs continuous control actions: steering angle
+        $\delta$ and target velocity $v$.
+\end{enumerate}
+
+\subsection{Instruction Encoder}
+% Detail the text encoder architecture
+
+\subsection{Perception Network}
+% Detail the LiDAR processing network
+
+\subsection{Policy Network}
+% Detail the PPO setup, action space, etc.
+
+\subsection{Reward Design}
+% Detail the reward function, including command-specific terms
+
+% ============================================================
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\subsection{Simulation Environment}
+We use CARLA as the primary simulation environment, configured with
+a 2D LiDAR sensor and a 1:10 scale vehicle model.
+
+\subsection{Training Configuration}
+% Detail hyperparameters, training schedule, compute resources (RunPod)
+
+\subsection{Commands}
+The following commands are used during training and evaluation:
+
+\begin{table}[h]
+\centering
+\caption{Training commands and their expected driving behaviours.}
+\label{tab:commands}
+\begin{tabular}{@{}lp{8cm}@{}}
+\toprule
+\textbf{Command} & \textbf{Expected Behaviour} \\
+\midrule
+``Push for overtake''   & Aggressive braking, apex clipping, maximum exit speed \\
+``Conserve tires''      & Smooth trajectories, moderate speed, minimal lateral g-force \\
+``Defend the inside''   & Prioritise inside-line positioning, block overtake attempts \\
+% TODO: Add more commands as defined
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Results}
+\label{sec:results}
+
+% TODO: Fill in with actual results after training
+
+\subsection{Quantitative Evaluation}
+% Tables / plots: lap time, command adherence metrics, collision rate
+
+\subsection{Qualitative Analysis}
+% Trajectory visualisations, behaviour differences per command
+
+\subsection{Ablation Studies}
+% Effect of removing instruction encoder, different embedding models, etc.
+
+% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+
+% TODO: Discuss findings, limitations, and future directions
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+% TODO: Summarise contributions and key findings
+
+% ============================================================
+% \printbibliography  % Uncomment when references.bib is ready
+
+\end{document}

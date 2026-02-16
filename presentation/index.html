@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language-Conditioned Racing Agent — Semester Project</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ====== SLIDE NAVIGATION ====== -->
+    <div class="slide-counter" id="slideCounter">1 / 8</div>
+    <div class="nav-arrows">
+        <button class="nav-btn" id="prevBtn" aria-label="Previous slide">&#8592;</button>
+        <button class="nav-btn" id="nextBtn" aria-label="Next slide">&#8594;</button>
+    </div>
+
+    <!-- ====== SLIDES ====== -->
+    <div class="slides-container" id="slidesContainer">
+
+        <!-- SLIDE 1: Title -->
+        <section class="slide active" data-index="0">
+            <div class="slide-content title-slide">
+                <span class="tag">Semester Project — Autonomous Agents</span>
+                <h1>Language-Conditioned<br>Racing Agent</h1>
+                <p class="subtitle">Mapping natural language commands and LiDAR perception<br>to continuous vehicle
+                    control</p>
+                <div class="author-info">
+                    <p><strong>Vasilis K.</strong></p>
+                    <p class="date">February 2026</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: Problem Statement -->
+        <section class="slide" data-index="1">
+            <div class="slide-content">
+                <span class="section-label">01</span>
+                <h2>Problem Statement</h2>
+                <div class="two-col">
+                    <div class="col">
+                        <p>In high-performance autonomous racing, agents typically optimise a <strong>static
+                                objective</strong> (e.g., minimum lap time).</p>
+                        <p>However, dynamic race scenarios demand <em>adaptive strategies</em> triggered by high-level
+                            instructions:</p>
+                        <ul>
+                            <li>"Defend the inside line"</li>
+                            <li>"Push for overtake"</li>
+                            <li>"Conserve tires"</li>
+                        </ul>
+                    </div>
+                    <div class="col highlight-box">
+                        <h3>Goal</h3>
+                        <p>Develop an agent that maps <strong>natural language commands</strong> + <strong>raw LiDAR
+                                scans</strong> → continuous steering &amp; acceleration inputs.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: Core Challenges -->
+        <section class="slide" data-index="2">
+            <div class="slide-content">
+                <span class="section-label">02</span>
+                <h2>Core Challenges</h2>
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-icon">🔀</div>
+                        <h3>Multimodal Fusion</h3>
+                        <p>Fuse semantic information (text embeddings) with geometric perception (2D LiDAR point
+                            clouds).</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🔄</div>
+                        <h3>Dynamic Objective Switching</h3>
+                        <p>"Push" requires aggressive clipping; "Conserve" demands smoother trajectories.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🏎️</div>
+                        <h3>Vehicle Dynamics</h3>
+                        <p>Operating at friction limits — excessive inputs lead to loss of traction.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: Architecture -->
+        <section class="slide" data-index="3">
+            <div class="slide-content">
+                <span class="section-label">03</span>
+                <h2>Proposed Architecture</h2>
+                <div class="architecture-diagram">
+                    <div class="arch-block blue">
+                        <h4>Instruction Encoder</h4>
+                        <p>MiniLM / DistilBERT</p>
+                        <small>Text → Latent Semantic Vector</small>
+                    </div>
+                    <div class="arch-arrow">⟶</div>
+                    <div class="arch-block green">
+                        <h4>Fusion Layer</h4>
+                        <p>Concatenation</p>
+                        <small>[LiDAR Features ⊕ Command Embedding]</small>
+                    </div>
+                    <div class="arch-arrow">⟵</div>
+                    <div class="arch-block purple">
+                        <h4>Perception Network</h4>
+                        <p>MLP / 1D-CNN</p>
+                        <small>LiDAR → Track &amp; Obstacle Features</small>
+                    </div>
+                </div>
+                <div class="architecture-diagram" style="margin-top: 1.5rem;">
+                    <div class="arch-block orange" style="max-width: 400px;">
+                        <h4>PPO Policy</h4>
+                        <p>Continuous Control Outputs</p>
+                        <small>Steering δ &nbsp;|&nbsp; Velocity v</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: Technical Stack -->
+        <section class="slide" data-index="4">
+            <div class="slide-content">
+                <span class="section-label">04</span>
+                <h2>Technical Stack</h2>
+                <div class="stack-grid">
+                    <div class="stack-item">
+                        <h4>Simulation</h4>
+                        <p>CARLA / F1TENTH Gym</p>
+                    </div>
+                    <div class="stack-item">
+                        <h4>NLP</h4>
+                        <p>HuggingFace Transformers<br><code>all-MiniLM-L6-v2</code></p>
+                    </div>
+                    <div class="stack-item">
+                        <h4>RL Framework</h4>
+                        <p>Stable-Baselines3<br>Custom Policy Networks</p>
+                    </div>
+                    <div class="stack-item">
+                        <h4>Compute</h4>
+                        <p>RunPod Cloud GPU</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: Methodology -->
+        <section class="slide" data-index="5">
+            <div class="slide-content">
+                <span class="section-label">05</span>
+                <h2>Methodology</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker">1</div>
+                        <div class="timeline-text">
+                            <h4>Environment Setup</h4>
+                            <p>Deploy CARLA on cloud GPU; configure LiDAR and vehicle parameters.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">2</div>
+                        <div class="timeline-text">
+                            <h4>Instruction Encoding</h4>
+                            <p>Fine-tune or freeze a Transformer to generate command embeddings.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">3</div>
+                        <div class="timeline-text">
+                            <h4>Policy Training</h4>
+                            <p>Train PPO with multimodal state, shaping reward for instruction compliance.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">4</div>
+                        <div class="timeline-text">
+                            <h4>Evaluation</h4>
+                            <p>Measure command adherence, lap time, safety metrics across scenarios.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: Results (placeholder) -->
+        <section class="slide" data-index="6">
+            <div class="slide-content">
+                <span class="section-label">06</span>
+                <h2>Results</h2>
+                <div class="results-placeholder">
+                    <p class="placeholder-text">📊 Results, charts, and demo videos will be added here after training
+                        and evaluation.</p>
+                    <div class="metric-row">
+                        <div class="metric">
+                            <span class="metric-value">—</span>
+                            <span class="metric-label">Avg Lap Time</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value">—</span>
+                            <span class="metric-label">Command Adherence</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value">—</span>
+                            <span class="metric-label">Collision Rate</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: Thank You -->
+        <section class="slide" data-index="7">
+            <div class="slide-content title-slide">
+                <h1>Thank You</h1>
+                <p class="subtitle">Questions &amp; Discussion</p>
+                <div class="author-info">
+                    <p><a href="https://github.com/" target="_blank" style="color:var(--accent);">GitHub Repository</a>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

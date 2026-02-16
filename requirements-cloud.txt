@@ -2,7 +2,7 @@
 -r requirements.txt
 
 # CARLA simulator client
-carla==0.9.15
+carla==0.9.16
 
 # CARLA dependencies
 pygame
