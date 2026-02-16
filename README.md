@@ -1,4 +1,4 @@
-# 🏎️ Language-Conditioned Racing Agent
+# 🏎️ DriveLLM: Language-Conditioned High-Speed Autonomous Racing
 
 A reinforcement learning agent that maps **natural language commands** and **LiDAR scans** to continuous racing controls using the CARLA simulator.
 
