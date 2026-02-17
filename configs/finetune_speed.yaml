@@ -77,10 +77,6 @@ rewards:
       speed_weight: 6.0           # 6x base → MUST GO FAST
       smoothness_weight: 0.05     # Ignore smoothness
       speed_bonus_weight: 4.0     # Huge bonus for top speeds
-    conservative:
-      speed_weight: 1.0           # Low incentive for speed
-      smoothness_weight: 0.3      # Reduced from 0.5 to prevent "stopping"
-      speed_bonus_weight: 0.5     # Small bonus for speed
     defensive:
       speed_weight: 2.5           # Increased from 2.0 to avoid crawling
       lane_deviation_weight: 0.5  # Stay on line
@@ -106,13 +102,12 @@ training:
   curriculum:
     neutral_from_step: 0          # Phase 1: learn basic driving
     aggressive_from_step: 200_000  # Phase 2: add speed pushing
-    defensive_from_step: 300_000   # Phase 3a: add defensive (moderate speed)
-    conservative_from_step: 500_000 # Phase 3b: add conservative (slow/smooth)
+    defensive_from_step: 400_000   # Phase 3: Defensive only (Lane keeping)
 
   # Logging & checkpointing
   checkpoint_freq: 50_000
-  log_dir: "logs_v4/"
-  checkpoint_dir: "checkpoints_v4/"
+  log_dir: "logs_v5/"
+  checkpoint_dir: "checkpoints_v5/"
 
 # --- Model Architecture ---
 model:

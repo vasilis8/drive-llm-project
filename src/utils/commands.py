@@ -31,14 +31,6 @@ COMMAND_CATEGORIES = {
         "Aggressive braking into the corner",
         "Close the gap quickly",
     ],
-    "conservative": [
-        "Conserve tires",
-        "Save energy and drive smoothly",
-        "Cruise at a steady pace",
-        "Easy on the brakes",
-        "Smooth steering inputs only",
-        "No unnecessary risks",
-    ],
     "defensive": [
         "Defend the inside line",
         "Block the opponent behind",

@@ -32,7 +32,6 @@ def plot_evaluation_results(
     # Color scheme
     colors = {
         "aggressive": "#e74c3c",
-        "conservative": "#2ecc71",
         "defensive": "#3498db",
         "neutral": "#9b59b6",
     }
@@ -171,7 +170,7 @@ def plot_command_compliance_radar(
 
     colors = {
         "aggressive": "#e74c3c",
-        "conservative": "#2ecc71",
+        # "conservative": "#2ecc71",
         "defensive": "#3498db",
         "neutral": "#9b59b6",
     }

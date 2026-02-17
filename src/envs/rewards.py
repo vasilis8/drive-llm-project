@@ -2,8 +2,8 @@
 Reward functions for Language-Conditioned Racing Agent.
 
 Computes command-aware rewards that shape the agent's behavior based
-on the current language command category (aggressive, conservative,
-defensive, neutral).
+on the current language command category (aggressive, defensive,
+neutral).
 """
 
 import numpy as np
@@ -28,7 +28,7 @@ def compute_reward(
             - yaw_rate: angular velocity in rad/s
             - distance_traveled: cumulative distance along track
         prev_vehicle_state: Previous timestep's vehicle state (None on first step).
-        command_category: One of "aggressive", "conservative", "defensive", "neutral".
+        command_category: One of "aggressive", "defensive", "neutral".
         collision: Whether a collision occurred this step.
         reward_config: Reward weights from config file.
 

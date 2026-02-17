@@ -508,7 +508,7 @@
                 telemetry. These modalities are fused through a custom multimodal network and trained end-to-end to
                 produce continuous steering and throttle outputs.</p>
             <p>The agent learns through a three-phase curriculum: first basic driving (neutral commands), then
-                aggressive speed-pushing, and finally all four command categories. Differentiation between behaviors is
+                aggressive speed-pushing, and finally defensive lane-keeping. Differentiation between behaviors is
                 achieved through per-category reward weight modifiers, not separate policies.</p>
         </section>
 
@@ -558,8 +558,8 @@
                 </div>
                 <div class="step">
                     <h3>Curriculum</h3>
-                    <p>Phase 1 (0–200K steps): Neutral only. Phase 2 (200K–400K): Add Aggressive. Phase 3 (400K+): All
-                        four categories. Learn to drive first, differentiate second.</p>
+                    <p>Phase 1 (0–200K steps): Neutral only. Phase 2 (200K–400K): Add Aggressive. Phase 3 (400K+): Add
+                        Defensive. Learn to drive first, differentiate second.</p>
                 </div>
                 <div class="step">
                     <h3>Reward Shaping</h3>
@@ -578,7 +578,7 @@
         <!-- Commands -->
         <section>
             <h2>Command Vocabulary</h2>
-            <p>The agent responds to 24 commands across 4 behavioral categories.</p>
+            <p>The agent responds to 18 commands across 3 behavioral categories.</p>
             <div class="cmd-grid">
                 <div class="cmd-group">
                     <h3>Aggressive</h3>
@@ -591,17 +591,7 @@
                         <li>"Close the gap quickly"</li>
                     </ul>
                 </div>
-                <div class="cmd-group">
-                    <h3>Conservative</h3>
-                    <ul>
-                        <li>"Conserve tires"</li>
-                        <li>"Save energy and drive smoothly"</li>
-                        <li>"Cruise at a steady pace"</li>
-                        <li>"Easy on the brakes"</li>
-                        <li>"Smooth steering inputs only"</li>
-                        <li>"No unnecessary risks"</li>
-                    </ul>
-                </div>
+
                 <div class="cmd-group">
                     <h3>Defensive</h3>
                     <ul>
@@ -631,7 +621,7 @@
         <section>
             <h2>Results</h2>
             <p>Results and training curves will be added after the final training run completes. The expected behavior
-                is a clear speed ordering: Aggressive &gt; Neutral &gt; Defensive &gt; Conservative.</p>
+                is a clear speed ordering: Aggressive &gt; Neutral &gt; Defensive.</p>
         </section>
 
         <!-- Demo -->

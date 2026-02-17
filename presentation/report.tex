@@ -83,8 +83,8 @@ Transformer-based instruction encoder (all-MiniLM-L6-v2,
 LiDAR perception, fused through a multi-layer perceptron into a
 Proximal Policy Optimization (PPO) policy. The agent is trained in the
 CARLA 0.9.15 simulator using a curriculum-based training strategy that
-progressively introduces four command categories—neutral, aggressive,
-defensive, and conservative—over the course of 2 million timesteps. We
+progressively introduces three command categories---neutral, aggressive,
+and defensive---over the course of 2 million timesteps. We
 demonstrate that the agent successfully adapts its driving behaviour in
 response to different high-level strategic commands, exhibiting
 measurably different speed profiles, steering smoothness, and positional
@@ -196,8 +196,8 @@ in a closed-loop architecture (Figure~\ref{fig:architecture}):
     \item \textbf{CARLA Simulation Environment:} Provides the racing
         track, vehicle physics, LiDAR sensor data, and collision
         detection.
-    \item \textbf{Command Manager:} Maintains a vocabulary of 24
-        natural language commands across 4 categories, handles
+    \item \textbf{Command Manager:} Maintains a vocabulary of 18
+        natural language commands across 3 categories, handles
         curriculum-based sampling, and manages pre-computed embeddings.
     \item \textbf{Instruction Encoder:} A pre-trained Transformer model
         (\texttt{all-MiniLM-L6-v2}) that encodes natural language
@@ -228,8 +228,8 @@ in a closed-loop architecture (Figure~\ref{fig:architecture}):
 \subsection{Command Vocabulary and Categories}
 \label{sec:commands}
 
-We define a vocabulary of \textbf{24 natural language commands} organized
-into four behavioural categories, each with 6 semantically varied
+We define a vocabulary of \textbf{18 natural language commands} organized
+into three behavioural categories, each with 6 semantically varied
 commands (Table~\ref{tab:commands}). The categories are designed to
 cover a spectrum of driving strategies commonly encountered in
 competitive racing.
@@ -247,10 +247,7 @@ Each category contains 6 semantically varied commands.}
 ``Overtake now'', ``Maximum speed on the straight'',
 ``Aggressive braking into the corner'', ``Close the gap quickly'' \\
 \addlinespace
-\textbf{Conservative} & 6 & ``Conserve tires'', ``Save energy and drive
-smoothly'', ``Cruise at a steady pace'', ``Easy on the brakes'',
-``Smooth steering inputs only'', ``No unnecessary risks'' \\
-\addlinespace
+
 \textbf{Defensive} & 6 & ``Defend the inside line'', ``Block the opponent
 behind'', ``Hold your position'', ``Cover the racing line'',
 ``Stay tight on the apex'', ``Do not let them pass'' \\
@@ -288,7 +285,7 @@ The encoder weights are \textbf{frozen} during RL training—the model
 serves as a fixed feature extractor. This design choice ensures stable
 embeddings and avoids the computational overhead of fine-tuning a
 language model within the RL loop. Embeddings are pre-computed for all
-24 commands at initialisation time and cached for efficient lookup
+18 commands at initialisation time and cached for efficient lookup
 during training.
 
 \subsection{Perception Network (LiDAR Branch)}
@@ -446,8 +443,7 @@ r_t = \begin{cases}
         deviation from the lane centre ($w_l = 0.1$).
 
     \item \textbf{Collision Penalty:} Immediate reward of $-15$
-        (category-dependent: $-5$ for aggressive, $-25$ for
-        conservative), terminating further reward computation.
+        (category-dependent: $-5$ for aggressive), terminating further reward computation.
 \end{enumerate}
 
 \subsubsection{Command-Specific Weight Modifiers}
@@ -463,13 +459,13 @@ shown in \textbf{bold}; unmodified weights use default (neutral) values.}
 \label{tab:reward_modifiers}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
+\textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Defensive} & \textbf{Neutral} \\
 \midrule
-$w_s$ (speed)              & 3.0   & \textbf{6.0}   & \textbf{1.0}   & \textbf{2.5}   & 3.0 \\
-$w_m$ (smoothness)         & 0.1   & \textbf{0.05}  & \textbf{0.3}   & 0.1            & 0.1 \\
-$w_l$ (lane dev.)          & 0.5   & 0.1            & 0.1            & \textbf{0.5}   & 0.5 \\
-$w_b$ (speed bonus)        & 2.0   & \textbf{4.0}   & \textbf{0.5}   & \textbf{1.5}   & 2.0 \\
-$r_{\text{crash}}$         & $-15$ & $-15$          & $-15$          & $-15$          & $-15$ \\
+$w_s$ (speed)              & 3.0   & \textbf{6.0}   & \textbf{2.5}   & 3.0 \\
+$w_m$ (smoothness)         & 0.1   & \textbf{0.05}  & 0.1            & 0.1 \\
+$w_l$ (lane dev.)          & 0.5   & 0.1            & \textbf{0.5}   & 0.5 \\
+$w_b$ (speed bonus)        & 2.0   & \textbf{4.0}   & \textbf{1.5}   & 2.0 \\
+$r_{\text{crash}}$         & $-15$ & $-15$          & $-15$          & $-15$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -479,9 +475,7 @@ $r_{\text{crash}}$         & $-15$ & $-15$          & $-15$          & $-15$    
     \item \textbf{Aggressive:} Maximum speed weight ($5.0$), quadruple
         speed bonus, minimal collision penalty ($-5$) — the agent is
         incentivised to go as fast as possible, accepting crash risk.
-    \item \textbf{Conservative:} Low speed weight ($1.5$), high
-        smoothness penalty ($0.5$), harsh collision penalty ($-25$) —
-        rewards smooth, cautious driving with strong crash avoidance.
+
     \item \textbf{Defensive:} Moderate speed ($2.0$), high lane deviation
         weight ($0.5$) — strongly penalises leaving the racing line,
         encouraging disciplined position holding.
@@ -501,8 +495,8 @@ compliance metrics:
 
 \subsubsection{Per-Category Behavioural Metrics}
 
-For each command category $c \in \{\text{aggressive, conservative,
-defensive, neutral}\}$, we measure the following quantities across $N$
+For each command category $c \in \{\text{aggressive, defensive, neutral}\}$,
+we measure the following quantities across $N$
 evaluation episodes:
 
 \begin{enumerate}
@@ -512,8 +506,7 @@ evaluation episodes:
         \mathcal{S}_c = \frac{1}{N} \sum_{i=1}^{N}
             \frac{\bar{v}_i}{v_{\max}}
         \]
-        \emph{Expected:} Aggressive $>$ Neutral $>$ Defensive $>$
-        Conservative.
+        \emph{Expected:} Aggressive $>$ Neutral $>$ Defensive.
 
     \item \textbf{Smoothness Index} ($\mathcal{M}_c$): Mean steering
         jerk, measuring control smoothness (lower = smoother):
@@ -522,8 +515,7 @@ evaluation episodes:
             \frac{1}{T_i} \sum_{t=1}^{T_i}
             |\delta_t^{(i)} - \delta_{t-1}^{(i)}|
         \]
-        \emph{Expected:} Conservative $<$ Neutral $<$ Defensive $<$
-        Aggressive.
+        \emph{Expected:} Neutral $<$ Defensive $<$ Aggressive.
 
     \item \textbf{Lane Adherence} ($\mathcal{L}_c$): Mean lane
         deviation, measuring positional discipline (lower = better adherence):
@@ -532,8 +524,7 @@ evaluation episodes:
             \frac{1}{T_i} \sum_{t=1}^{T_i}
             |d_{\text{lane}}^{(i)}(t)|
         \]
-        \emph{Expected:} Defensive $<$ Neutral $<$ Conservative $<$
-        Aggressive.
+        \emph{Expected:} Defensive $<$ Neutral $<$ Aggressive.
 
     \item \textbf{Collision Rate} ($\mathcal{C}_c$): Fraction of
         episodes ending in collision:
@@ -541,8 +532,7 @@ evaluation episodes:
         \mathcal{C}_c = \frac{1}{N} \sum_{i=1}^{N}
             \mathbb{1}[\text{collision}_i]
         \]
-        \emph{Expected:} Conservative $<$ Defensive $<$ Neutral $<$
-        Aggressive.
+        \emph{Expected:} Defensive $<$ Neutral $<$ Aggressive.
 
     \item \textbf{Episode Survival Length} ($\mathcal{T}_c$): Mean
         episode duration in timesteps (longer = better driving without
@@ -585,11 +575,11 @@ language-conditioned agent should satisfy these orderings.}
 \toprule
 \textbf{Metric} & \textbf{Expected Ordering} \\
 \midrule
-Speed Ratio ($\mathcal{S}$) & Aggressive $>$ Neutral $>$ Defensive $>$ Conservative \\
-Smoothness ($\mathcal{M}$) & Conservative $<$ Neutral $<$ Defensive $<$ Aggressive \\
-Lane Adherence ($\mathcal{L}$) & Defensive $<$ Neutral $<$ Conservative $<$ Aggressive \\
-Collision Rate ($\mathcal{C}$) & Conservative $<$ Defensive $<$ Neutral $<$ Aggressive \\
-Survival Length ($\mathcal{T}$) & Conservative $>$ Defensive $>$ Neutral $>$ Aggressive \\
+Speed Ratio ($\mathcal{S}$) & Aggressive $>$ Neutral $>$ Defensive \\
+Smoothness ($\mathcal{M}$) & Neutral $<$ Defensive $<$ Aggressive \\
+Lane Adherence ($\mathcal{L}$) & Defensive $<$ Neutral $<$ Aggressive \\
+Collision Rate ($\mathcal{C}$) & Defensive $<$ Neutral $<$ Aggressive \\
+Survival Length ($\mathcal{T}$) & Defensive $>$ Neutral $>$ Aggressive \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -676,7 +666,7 @@ Checkpoint Frequency   & Every 50,000 steps \\
 \label{sec:curriculum}
 
 A crucial design decision is the \textbf{progressive introduction of
-command categories} during training. Presenting all four command types
+command categories} during training. Presenting all three command types
 from the start would create a non-stationary reward signal that
 destabilises early learning. Instead, we employ a curriculum:
 
@@ -690,9 +680,8 @@ categories during training.}
 \textbf{Phase} & \textbf{Steps} & \textbf{Active Categories} \\
 \midrule
 Phase 1 & 0 -- 200K     & Neutral only \\
-Phase 2 & 200K -- 300K   & Neutral + Aggressive \\
-Phase 3a & 300K -- 500K  & + Defensive (staggered start) \\
-Phase 3b & 500K -- 2M    & + Conservative (final addition) \\
+Phase 2 & 200K -- 400K   & Neutral + Aggressive \\
+Phase 3 & 400K -- 2M    & + Defensive (final addition) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -703,11 +692,9 @@ Phase 3b & 500K -- 2M    & + Conservative (final addition) \\
         track following and collision avoidance.
     \item \textbf{Phase 2 (+Aggressive):} The most contrasting category
         (high speed) is introduced to force policy differentiation.
-    \item \textbf{Phase 3a (+Defensive):} Defensive commands are added at
-        300k steps to introduce moderate speed and tight lane adherence.
-    \item \textbf{Phase 3b (+Conservative):} Conservative commands are
-        delayed until 500k steps to prevent early convergence to
-        degenerate low-speed strategies.
+    \item \textbf{Phase 3 (+Defensive):} Defensive commands are added at
+        400k steps to introduce moderate speed and tight lane adherence,
+        completing the training set.
 \end{itemize}
 
 The curriculum is implemented via the \texttt{CurriculumCallback}, which
@@ -817,7 +804,7 @@ Section~\ref{sec:compliance}.
 \label{tab:quant_results}
 \begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Metric} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
+\textbf{Metric} & \textbf{Aggressive} & \textbf{Defensive} & \textbf{Neutral} \\
 \midrule
 % TODO: Fill with actual evaluation results
 Mean Reward     & --- & --- & --- & --- \\
@@ -844,7 +831,7 @@ better for compliance, \textdownarrow\ = lower is better).}
 \label{tab:compliance_results}
 \begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Compliance Metric} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
+\textbf{Compliance Metric} & \textbf{Aggressive} & \textbf{Defensive} & \textbf{Neutral} \\
 \midrule
 % TODO: Fill with actual compliance results
 Speed Ratio $\mathcal{S}$ (\textuparrow)    & --- & --- & --- & --- \\
@@ -942,14 +929,6 @@ behaviour for each command category over training:
         \vspace{3cm}}}
         \caption{Aggressive reward over training}
     \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \fbox{\parbox{\textwidth}{\centering\vspace{3cm}
-        \textbf{[PLACEHOLDER: conservative/mean\_reward]}\\
-        TensorBoard screenshot
-        \vspace{3cm}}}
-        \caption{Conservative reward over training}
-    \end{subfigure}
     \caption{Per-category reward evolution during training. Note how
     each category's reward begins rising after its curriculum introduction
     point.}
@@ -974,9 +953,9 @@ behaviour for each command category over training:
     \begin{subfigure}[b]{0.48\textwidth}
         \fbox{\parbox{\textwidth}{\centering\vspace{4cm}
         \textbf{[PLACEHOLDER: CARLA Screenshot 2]}\\
-        Agent driving with conservative command
+        Agent driving with defensive command
         \vspace{4cm}}}
-        \caption{Conservative driving behaviour}
+        \caption{Defensive driving behaviour}
     \end{subfigure}
     \caption{CARLA simulation showing the agent executing different
     commands on Town04. Visual differences in speed and trajectory
@@ -1078,10 +1057,8 @@ learning agent that modulates its driving behaviour in response to
 natural language commands. By combining a pre-trained Transformer
 encoder with a multimodal perception pipeline and a command-aware
 reward function, the \systemname{} learns to exhibit distinct driving
-strategies for aggressive, conservative, defensive, and neutral
-commands.
-
-The curriculum learning approach—introducing command categories
+strategies for aggressive, defensive, and neutral
+driving modes. The curriculum learning approach—introducing command categories
 progressively over 2 million training steps—proved essential for
 stable convergence. Training on an NVIDIA RTX 4090 completed in
 approximately 2.2 hours at $\sim$255 iterations per second, demonstrating
