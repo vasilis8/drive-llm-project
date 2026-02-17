@@ -6,366 +6,646 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DriveLLM — Language-Conditioned High-Speed Autonomous Racing</title>
     <meta name="description"
-        content="DriveLLM maps natural language commands to continuous vehicle control using PPO and multimodal sensor fusion in the CARLA simulator.">
+        content="DriveLLM maps natural language racing commands to continuous vehicle control using PPO in the CARLA simulator.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #080808;
+            color: #ccc;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: #ccc;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: #fff;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            background: #151515;
+            padding: 0.1em 0.4em;
+            border-radius: 3px;
+        }
+
+        /* — Layout — */
+        .wrap {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        section {
+            padding: 4rem 0;
+        }
+
+        section+section {
+            border-top: 1px solid #161616;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+        }
+
+        h2 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #eee;
+            margin-bottom: 1rem;
+            letter-spacing: -0.01em;
+        }
+
+        h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ddd;
+            margin-bottom: 0.4rem;
+        }
+
+        p {
+            margin-bottom: 0.9rem;
+            font-size: 0.92rem;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #161616;
+            margin: 2.5rem 0;
+        }
+
+        /* — Header — */
+        .header {
+            padding: 5rem 0 4rem;
+            border-bottom: 1px solid #161616;
+        }
+
+        .header .tag {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #555;
+            margin-bottom: 1.2rem;
+            display: block;
+        }
+
+        .header h1 {
+            margin-bottom: 0.8rem;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 1.5rem;
+        }
+
+        .header .meta {
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        /* — Links row — */
+        .links {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+
+        .links a {
+            font-size: 0.82rem;
+            color: #888;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .links a:hover {
+            color: #fff;
+            border-color: #fff;
+        }
+
+        /* — Two columns — */
+        .cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 640px) {
+            .cols {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* — Cards — */
+        .card {
+            background: #0e0e0e;
+            border: 1px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 1.2rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .card h3 {
+            margin-bottom: 0.3rem;
+        }
+
+        .card p {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 0;
+        }
+
+        /* — Architecture — */
+        .arch {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .arch {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .arch-item {
+            background: #0e0e0e;
+            border: 1px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .arch-item h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-item p {
+            font-size: 0.82rem;
+            color: #666;
+            margin-bottom: 0;
+        }
+
+        .arch-item code {
+            font-size: 0.78em;
+        }
+
+        .arch-fusion {
+            background: #0e0e0e;
+            border: 1px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 0.8rem 1.2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+        /* — Command list — */
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .cmd-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .cmd-group h3 {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #666;
+            margin-bottom: 0.6rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .cmd-group ul {
+            list-style: none;
+        }
+
+        .cmd-group li {
+            font-size: 0.84rem;
+            color: #777;
+            padding: 0.25rem 0;
+        }
+
+        .cmd-group li::before {
+            content: '— ';
+            color: #444;
+        }
+
+        /* — Downloads — */
+        .dl-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+        }
+
+        @media (max-width: 640px) {
+            .dl-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dl-item {
+            display: block;
+            background: #0e0e0e;
+            border: 1px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 1.2rem;
+            transition: border-color 0.2s;
+        }
+
+        .dl-item:hover {
+            border-color: #333;
+        }
+
+        .dl-item h3 {
+            color: #ddd;
+            margin-bottom: 0.2rem;
+        }
+
+        .dl-item p {
+            font-size: 0.82rem;
+            color: #555;
+            margin-bottom: 0;
+        }
+
+        /* — Steps — */
+        .steps {
+            counter-reset: step;
+        }
+
+        .step {
+            padding-left: 2rem;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1.4rem;
+            height: 1.4rem;
+            border-radius: 50%;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .step h3 {
+            margin-bottom: 0.3rem;
+        }
+
+        .step p {
+            font-size: 0.88rem;
+            color: #777;
+            margin-bottom: 0;
+        }
+
+        /* — Stack pills — */
+        .pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .pill {
+            font-size: 0.78rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: 50px;
+            border: 1px solid #1a1a1a;
+            color: #777;
+            background: #0e0e0e;
+        }
+
+        .pill strong {
+            color: #aaa;
+            font-weight: 600;
+        }
+
+        /* — Media — */
+        .media-item {
+            margin-bottom: 2rem;
+        }
+
+        .media-item img,
+        .media-item video {
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid #1a1a1a;
+            display: block;
+        }
+
+        .media-item .caption {
+            font-size: 0.78rem;
+            color: #555;
+            margin-top: 0.5rem;
+        }
+
+        .media-placeholder {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #0e0e0e;
+            border: 1px dashed #2a2a2a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 0.85rem;
+        }
+
+        /* — Contact — */
+        .contact {
+            font-size: 0.82rem;
+            color: #555;
+            margin-top: 0.6rem;
+            line-height: 1.7;
+        }
+
+        .contact a {
+            color: #888;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1px;
+        }
+
+        .contact a:hover {
+            color: #fff;
+            border-color: #fff;
+        }
+
+        /* — Footer — */
+        footer {
+            border-top: 1px solid #161616;
+            padding: 2rem 0;
+            font-size: 0.78rem;
+            color: #444;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 640px) {
+            footer {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <div class="wrap">
 
-    <!-- ====== NAV ====== -->
-    <nav class="nav" id="nav">
-        <div class="nav-inner">
-            <a href="#" class="nav-logo">DriveLLM</a>
-            <div class="nav-links">
-                <a href="#about">About</a>
-                <a href="#architecture">Architecture</a>
-                <a href="#results">Results</a>
-                <a href="#downloads">Downloads</a>
-                <a href="https://github.com/" target="_blank" class="nav-github" aria-label="GitHub">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
-                </a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- ====== HERO ====== -->
-    <section class="hero" id="hero">
-        <div class="hero-bg"></div>
-        <div class="hero-content">
-            <p class="hero-tag">Semester Project &mdash; Autonomous Agents</p>
+        <!-- Header -->
+        <div class="header">
+            <span class="tag">Semester Project · Autonomous Agents</span>
             <h1>DriveLLM</h1>
-            <p class="hero-subtitle">Language-Conditioned High-Speed<br>Autonomous Racing</p>
-            <p class="hero-desc">Mapping natural language commands to continuous vehicle control<br>using reinforcement
-                learning and multimodal sensor fusion.</p>
-            <div class="hero-meta">
-                <span>Vasilis K.</span>
-                <span class="dot"></span>
-                <span>February 2026</span>
+            <p class="subtitle">Language-Conditioned High-Speed Autonomous Racing</p>
+            <p>An RL agent that maps natural language commands from a race engineer to continuous steering and throttle
+                control in the CARLA simulator. Built with PPO, LiDAR perception, and frozen sentence embeddings.</p>
+            <div class="contact">
+                <strong style="color:#ccc;">Vasileios Karavanas</strong><br>
+                Student ID: 2021030132<br>
+                <a href="mailto:vkaravanas1@tuc.gr">vkaravanas1@tuc.gr</a> · February 2026
             </div>
-            <div class="hero-actions">
-                <a href="#downloads" class="btn btn-primary">Get the Paper</a>
-                <a href="https://github.com/" target="_blank" class="btn btn-outline">View Source</a>
-            </div>
-        </div>
-        <div class="scroll-indicator" id="scrollIndicator">
-            <span>Scroll</span>
-            <div class="scroll-line"></div>
-        </div>
-    </section>
-
-    <!-- ====== ABOUT ====== -->
-    <section class="section" id="about">
-        <div class="container">
-            <p class="section-label">01 &mdash; Overview</p>
-            <h2>What is DriveLLM?</h2>
-            <div class="about-grid">
-                <div class="about-text">
-                    <p>In high-performance autonomous racing, agents typically optimise a <strong>static
-                            objective</strong> such as minimum lap time. However, real race scenarios demand
-                        <em>adaptive strategies</em> that change on the fly &mdash; push for an overtake, conserve
-                        tires, defend position.</p>
-                    <p>DriveLLM is a reinforcement learning agent that takes <strong>natural language commands</strong>
-                        from a race engineer (e.g., &ldquo;Push hard and go fast&rdquo;, &ldquo;Conserve tires&rdquo;)
-                        and translates them into continuous steering and throttle outputs in real time.</p>
-                    <p>The agent fuses <strong>1080-beam LiDAR</strong> perception with <strong>frozen sentence
-                            embeddings</strong> (all-MiniLM-L6-v2) and vehicle telemetry through a custom multimodal
-                        policy network, trained end-to-end with PPO in the CARLA simulator.</p>
-                </div>
-                <div class="about-cards">
-                    <div class="stat-card">
-                        <span class="stat-value">4</span>
-                        <span class="stat-label">Command Categories</span>
-                        <span class="stat-detail">Aggressive &middot; Conservative &middot; Defensive &middot;
-                            Neutral</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-value">24</span>
-                        <span class="stat-label">Language Commands</span>
-                        <span class="stat-detail">6 per category, encoded via sentence transformer</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-value">2M</span>
-                        <span class="stat-label">Training Steps</span>
-                        <span class="stat-detail">PPO on NVIDIA RTX 4090, ~3 hrs per run</span>
-                    </div>
-                </div>
+            <div class="links">
+                <a href="report.pdf" download>Report (PDF)</a>
+                <a href="presentation.pdf" download>Presentation (PDF)</a>
+                <a href="https://github.com/" target="_blank">GitHub ↗</a>
+                <a href="source.zip" download>Source Code (ZIP)</a>
             </div>
         </div>
-    </section>
 
-    <!-- ====== ARCHITECTURE ====== -->
-    <section class="section section-dark" id="architecture">
-        <div class="container">
-            <p class="section-label">02 &mdash; Architecture</p>
-            <h2>Multimodal Fusion Network</h2>
-            <p class="section-desc">Three input modalities are processed independently and fused into a shared
-                representation for the PPO actor-critic heads.</p>
-            <div class="arch-flow">
-                <div class="arch-card">
-                    <div class="arch-header">LiDAR Branch</div>
-                    <div class="arch-body">
-                        <code>1080-dim range array</code>
-                        <div class="arch-arrow-down"></div>
-                        <span>1D-CNN [64, 128, 256]</span>
-                        <div class="arch-arrow-down"></div>
-                        <span>Flatten</span>
-                    </div>
+        <!-- About -->
+        <section>
+            <h2>About</h2>
+            <p>In autonomous racing, agents typically optimise a static objective like minimum lap time. But real race
+                scenarios require adaptive strategies — push for an overtake, conserve tires, defend position —
+                triggered by high-level instructions.</p>
+            <p>DriveLLM addresses this by conditioning a PPO policy on natural language commands. The agent receives a
+                1080-beam LiDAR scan, a 384-dimensional sentence embedding (from all-MiniLM-L6-v2), and vehicle
+                telemetry. These modalities are fused through a custom multimodal network and trained end-to-end to
+                produce continuous steering and throttle outputs.</p>
+            <p>The agent learns through a three-phase curriculum: first basic driving (neutral commands), then
+                aggressive speed-pushing, and finally all four command categories. Differentiation between behaviors is
+                achieved through per-category reward weight modifiers, not separate policies.</p>
+        </section>
+
+        <!-- Architecture -->
+        <section>
+            <h2>Architecture</h2>
+            <div class="arch">
+                <div class="arch-item">
+                    <h3>LiDAR Branch</h3>
+                    <p><code>1080-dim</code> range array<br>→ 1D-CNN [64, 128, 256]<br>→ Flatten</p>
                 </div>
-                <div class="arch-card">
-                    <div class="arch-header">Command Branch</div>
-                    <div class="arch-body">
-                        <code>384-dim embedding</code>
-                        <div class="arch-arrow-down"></div>
-                        <span>Linear(384&rarr;128) + ReLU</span>
-                        <div class="arch-arrow-down"></div>
-                        <span>128-dim features</span>
-                    </div>
+                <div class="arch-item">
+                    <h3>Command Branch</h3>
+                    <p><code>384-dim</code> embedding<br>→ Linear(384→128)<br>→ ReLU</p>
                 </div>
-                <div class="arch-card">
-                    <div class="arch-header">Vehicle State</div>
-                    <div class="arch-body">
-                        <code>5-dim telemetry</code>
-                        <div class="arch-arrow-down"></div>
-                        <span>speed, accel, steering,<br>yaw rate, distance</span>
-                        <div class="arch-arrow-down"></div>
-                        <span>Pass-through</span>
-                    </div>
+                <div class="arch-item">
+                    <h3>Vehicle State</h3>
+                    <p><code>5-dim</code> telemetry<br>speed, accel, steering,<br>yaw rate, distance</p>
                 </div>
             </div>
-            <div class="fusion-block">
-                <div class="fusion-label">Concatenate &amp; Fuse</div>
-                <div class="fusion-detail">MLP [256, 128] &rarr; 128-dim feature vector &rarr; PPO Actor / Critic Heads
-                </div>
+            <div class="arch-fusion">
+                Concatenate → MLP [256, 128] → 128-dim features → PPO Actor / Critic
             </div>
 
-            <div class="tech-stack">
-                <h3>Technical Stack</h3>
-                <div class="stack-row">
-                    <div class="stack-pill"><strong>Simulation</strong> CARLA 0.9.15</div>
-                    <div class="stack-pill"><strong>NLP</strong> all-MiniLM-L6-v2</div>
-                    <div class="stack-pill"><strong>RL</strong> Stable-Baselines3 (PPO)</div>
-                    <div class="stack-pill"><strong>Compute</strong> RunPod RTX 4090</div>
-                    <div class="stack-pill"><strong>Map</strong> Town04 (Highway)</div>
-                </div>
+            <div class="pills">
+                <span class="pill"><strong>Sim</strong> CARLA 0.9.15</span>
+                <span class="pill"><strong>NLP</strong> all-MiniLM-L6-v2</span>
+                <span class="pill"><strong>RL</strong> SB3 / PPO</span>
+                <span class="pill"><strong>GPU</strong> RTX 4090</span>
+                <span class="pill"><strong>Map</strong> Town04</span>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ====== METHODOLOGY ====== -->
-    <section class="section" id="methodology">
-        <div class="container">
-            <p class="section-label">03 &mdash; Approach</p>
+        <!-- Methodology -->
+        <section>
             <h2>Training Pipeline</h2>
-            <div class="pipeline">
-                <div class="pipe-step">
-                    <div class="pipe-num">1</div>
-                    <div class="pipe-content">
-                        <h4>Environment Setup</h4>
-                        <p>Deploy CARLA in headless mode on a cloud GPU. Configure LiDAR (1080 beams, 50m range), Tesla
-                            Model 3, and synchronous stepping at 20 Hz.</p>
-                    </div>
+            <div class="steps">
+                <div class="step">
+                    <h3>Environment</h3>
+                    <p>CARLA deployed headless on cloud GPU. 1080-beam LiDAR, Tesla Model 3, synchronous stepping at 20
+                        Hz. Throttle remapped from [-1,1] to [0.3,1.0] — the car always drives forward.</p>
                 </div>
-                <div class="pipe-step">
-                    <div class="pipe-num">2</div>
-                    <div class="pipe-content">
-                        <h4>Command Encoding</h4>
-                        <p>24 natural language commands are encoded into 384-dim vectors using a frozen sentence
-                            transformer. Embeddings are cached and normalised.</p>
-                    </div>
+                <div class="step">
+                    <h3>Command Encoding</h3>
+                    <p>24 commands across 4 categories, encoded into 384-dim vectors using a frozen sentence
+                        transformer. Embeddings are L2-normalised and cached.</p>
                 </div>
-                <div class="pipe-step">
-                    <div class="pipe-num">3</div>
-                    <div class="pipe-content">
-                        <h4>Curriculum Learning</h4>
-                        <p>Phase 1 (0&ndash;200K): Neutral only. Phase 2 (200K&ndash;400K): Add Aggressive. Phase 3
-                            (400K+): All four categories. Agent learns to drive before it learns to differentiate.</p>
-                    </div>
+                <div class="step">
+                    <h3>Curriculum</h3>
+                    <p>Phase 1 (0–200K steps): Neutral only. Phase 2 (200K–400K): Add Aggressive. Phase 3 (400K+): All
+                        four categories. Learn to drive first, differentiate second.</p>
                 </div>
-                <div class="pipe-step">
-                    <div class="pipe-num">4</div>
-                    <div class="pipe-content">
-                        <h4>Reward Shaping</h4>
-                        <p>8-component reward: speed (dominant, command-weighted), progress, alive bonus, smoothness,
-                            lane deviation, idle penalty, collision penalty, and high-speed bonus. Differentiation via
-                            per-category weight modifiers.</p>
-                    </div>
+                <div class="step">
+                    <h3>Reward Shaping</h3>
+                    <p>8-component reward function. Speed is the dominant signal, weighted per category (aggressive 6.0×
+                        vs conservative 1.0×). Uniform collision penalty across all categories. Alive bonus incentivises
+                        survival.</p>
                 </div>
-                <div class="pipe-step">
-                    <div class="pipe-num">5</div>
-                    <div class="pipe-content">
-                        <h4>Evaluation</h4>
-                        <p>50 deterministic episodes across all categories. Metrics: mean speed, reward, episode length,
-                            crash rate, and steering jerk per command type.</p>
-                    </div>
+                <div class="step">
+                    <h3>Evaluation</h3>
+                    <p>50 deterministic episodes across all categories. Metrics: mean speed, episode length, crash rate,
+                        and steering smoothness per command type.</p>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ====== RESULTS ====== -->
-    <section class="section section-dark" id="results">
-        <div class="container">
-            <p class="section-label">04 &mdash; Results</p>
-            <h2>Key Findings</h2>
-            <p class="section-desc">Results, training curves, and demo videos will be available after the final training
-                run is complete.</p>
-            <div class="results-grid">
-                <div class="result-card">
-                    <span class="result-value">&mdash;</span>
-                    <span class="result-label">Avg Speed (Aggressive)</span>
-                </div>
-                <div class="result-card">
-                    <span class="result-value">&mdash;</span>
-                    <span class="result-label">Avg Speed (Conservative)</span>
-                </div>
-                <div class="result-card">
-                    <span class="result-value">&mdash;</span>
-                    <span class="result-label">Crash Rate</span>
-                </div>
-                <div class="result-card">
-                    <span class="result-value">&mdash;</span>
-                    <span class="result-label">Command Adherence</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ====== COMMANDS ====== -->
-    <section class="section" id="commands">
-        <div class="container">
-            <p class="section-label">05 &mdash; Commands</p>
-            <h2>Language Vocabulary</h2>
-            <p class="section-desc">The agent responds to 24 commands across 4 behavioral categories.</p>
-            <div class="commands-grid">
-                <div class="cmd-category cmd-aggressive">
-                    <h4>Aggressive</h4>
+        <!-- Commands -->
+        <section>
+            <h2>Command Vocabulary</h2>
+            <p>The agent responds to 24 commands across 4 behavioral categories.</p>
+            <div class="cmd-grid">
+                <div class="cmd-group">
+                    <h3>Aggressive</h3>
                     <ul>
-                        <li>&ldquo;Push hard and go fast&rdquo;</li>
-                        <li>&ldquo;Full attack mode&rdquo;</li>
-                        <li>&ldquo;Overtake now&rdquo;</li>
-                        <li>&ldquo;Maximum speed on the straight&rdquo;</li>
-                        <li>&ldquo;Aggressive braking into the corner&rdquo;</li>
-                        <li>&ldquo;Close the gap quickly&rdquo;</li>
+                        <li>"Push hard and go fast"</li>
+                        <li>"Full attack mode"</li>
+                        <li>"Overtake now"</li>
+                        <li>"Maximum speed on the straight"</li>
+                        <li>"Aggressive braking into the corner"</li>
+                        <li>"Close the gap quickly"</li>
                     </ul>
                 </div>
-                <div class="cmd-category cmd-conservative">
-                    <h4>Conservative</h4>
+                <div class="cmd-group">
+                    <h3>Conservative</h3>
                     <ul>
-                        <li>&ldquo;Conserve tires&rdquo;</li>
-                        <li>&ldquo;Save energy and drive smoothly&rdquo;</li>
-                        <li>&ldquo;Cruise at a steady pace&rdquo;</li>
-                        <li>&ldquo;Easy on the brakes&rdquo;</li>
-                        <li>&ldquo;Smooth steering inputs only&rdquo;</li>
-                        <li>&ldquo;No unnecessary risks&rdquo;</li>
+                        <li>"Conserve tires"</li>
+                        <li>"Save energy and drive smoothly"</li>
+                        <li>"Cruise at a steady pace"</li>
+                        <li>"Easy on the brakes"</li>
+                        <li>"Smooth steering inputs only"</li>
+                        <li>"No unnecessary risks"</li>
                     </ul>
                 </div>
-                <div class="cmd-category cmd-defensive">
-                    <h4>Defensive</h4>
+                <div class="cmd-group">
+                    <h3>Defensive</h3>
                     <ul>
-                        <li>&ldquo;Defend the inside line&rdquo;</li>
-                        <li>&ldquo;Block the opponent behind&rdquo;</li>
-                        <li>&ldquo;Hold your position&rdquo;</li>
-                        <li>&ldquo;Cover the racing line&rdquo;</li>
-                        <li>&ldquo;Stay tight on the apex&rdquo;</li>
-                        <li>&ldquo;Do not let them pass&rdquo;</li>
+                        <li>"Defend the inside line"</li>
+                        <li>"Block the opponent behind"</li>
+                        <li>"Hold your position"</li>
+                        <li>"Cover the racing line"</li>
+                        <li>"Stay tight on the apex"</li>
+                        <li>"Do not let them pass"</li>
                     </ul>
                 </div>
-                <div class="cmd-category cmd-neutral">
-                    <h4>Neutral</h4>
+                <div class="cmd-group">
+                    <h3>Neutral</h3>
                     <ul>
-                        <li>&ldquo;Follow the racing line&rdquo;</li>
-                        <li>&ldquo;Maintain current gap&rdquo;</li>
-                        <li>&ldquo;Steady pace&rdquo;</li>
-                        <li>&ldquo;Drive normally&rdquo;</li>
-                        <li>&ldquo;Keep a consistent rhythm&rdquo;</li>
-                        <li>&ldquo;Standard driving&rdquo;</li>
+                        <li>"Follow the racing line"</li>
+                        <li>"Maintain current gap"</li>
+                        <li>"Steady pace"</li>
+                        <li>"Drive normally"</li>
+                        <li>"Keep a consistent rhythm"</li>
+                        <li>"Standard driving"</li>
                     </ul>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ====== DOWNLOADS ====== -->
-    <section class="section section-dark" id="downloads">
-        <div class="container">
-            <p class="section-label">06 &mdash; Resources</p>
-            <h2>Downloads &amp; Links</h2>
-            <div class="downloads-grid">
-                <a href="report.pdf" class="download-card" download>
-                    <div class="download-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="16" y1="13" x2="8" y2="13" />
-                            <line x1="16" y1="17" x2="8" y2="17" />
-                            <polyline points="10 9 9 9 8 9" />
-                        </svg>
-                    </div>
-                    <h4>Report</h4>
+        <!-- Results -->
+        <section>
+            <h2>Results</h2>
+            <p>Results and training curves will be added after the final training run completes. The expected behavior
+                is a clear speed ordering: Aggressive &gt; Neutral &gt; Defensive &gt; Conservative.</p>
+        </section>
+
+        <!-- Demo -->
+        <section>
+            <h2>Demo</h2>
+            <p>Screenshots and recordings from the trained agent driving in CARLA.</p>
+
+            <div class="media-item">
+                <h3>Screenshot</h3>
+                <!-- Replace the placeholder below with: <img src="screenshot.png" alt="DriveLLM agent driving in CARLA"> -->
+                <div class="media-placeholder">screenshot.png — add after recording</div>
+                <p class="caption">The agent driving on Town04 (highway) with HUD overlay showing the active command,
+                    speed, and steering.</p>
+            </div>
+
+            <div class="media-item">
+                <h3>Video</h3>
+                <!-- Replace the placeholder below with: <video src="demo.mp4" controls></video> -->
+                <div class="media-placeholder">demo.mp4 — add after recording</div>
+                <p class="caption">Full episode recording showing the agent responding to different command categories.
+                </p>
+            </div>
+        </section>
+
+        <!-- Downloads -->
+        <section>
+            <h2>Downloads</h2>
+            <div class="dl-grid">
+                <a href="report.pdf" class="dl-item" download>
+                    <h3>Report</h3>
                     <p>Full technical report (PDF)</p>
                 </a>
-                <a href="presentation.pdf" class="download-card" download>
-                    <div class="download-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                            <line x1="8" y1="21" x2="16" y2="21" />
-                            <line x1="12" y1="17" x2="12" y2="21" />
-                        </svg>
-                    </div>
-                    <h4>Presentation</h4>
+                <a href="presentation.pdf" class="dl-item" download>
+                    <h3>Presentation</h3>
                     <p>Slide deck (PDF)</p>
                 </a>
-                <a href="https://github.com/" target="_blank" class="download-card">
-                    <div class="download-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                        </svg>
-                    </div>
-                    <h4>Source Code</h4>
-                    <p>GitHub repository</p>
+                <a href="https://github.com/" class="dl-item" target="_blank">
+                    <h3>GitHub ↗</h3>
+                    <p>Source code repository</p>
                 </a>
-                <a href="source.zip" class="download-card" download>
-                    <div class="download-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                    </div>
-                    <h4>Source (ZIP)</h4>
+                <a href="source.zip" class="dl-item" download>
+                    <h3>Source (ZIP)</h3>
                     <p>Download source code</p>
                 </a>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ====== FOOTER ====== -->
-    <footer class="footer">
-        <div class="container footer-inner">
-            <div class="footer-left">
-                <span class="footer-logo">DriveLLM</span>
-                <p>Language-Conditioned High-Speed Autonomous Racing</p>
-            </div>
-            <div class="footer-right">
-                <p>Vasilis K. &mdash; February 2026</p>
-                <p class="footer-muted">Semester Project &middot; Autonomous Agents</p>
-            </div>
-        </div>
-    </footer>
+        <!-- Footer -->
+        <footer>
+            <span>DriveLLM · Vasileios Karavanas · 2021030132</span>
+            <span>Semester Project · Autonomous Agents · February 2026</span>
+        </footer>
 
-    <script src="script.js"></script>
+    </div>
 </body>
 
 </html>
