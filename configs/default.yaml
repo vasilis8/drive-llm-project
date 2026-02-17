@@ -68,7 +68,7 @@ rewards:
 # --- Training ---
 training:
   algorithm: "PPO"
-  total_timesteps: 1_000_000    # Full run — ~3 hrs on RTX 4090
+  total_timesteps: 2_000_000    # Full training — ~6 hrs on RTX 4090
   learning_rate: 3.0e-4
   n_steps: 2048
   batch_size: 64

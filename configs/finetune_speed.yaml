@@ -1,0 +1,132 @@
+# ============================================================
+# Language-Conditioned Racing Agent — FINAL Training Config
+# ============================================================
+# Fresh training from scratch with speed-focused rewards.
+# Target: Agent racing at ~100 km/h with command differentiation.
+# Duration: ~2.5 hrs for 2M steps.
+
+# --- CARLA Server ---
+carla:
+  host: "localhost"
+  port: 2000
+  timeout: 30.0
+  town: "Town04"
+  weather: "ClearNoon"
+  fixed_delta_seconds: 0.05
+
+# --- Sensors ---
+sensors:
+  lidar:
+    channels: 1
+    range: 50.0
+    points_per_second: 56000
+    rotation_frequency: 20
+    upper_fov: 0.0
+    lower_fov: 0.0
+    n_beams: 1080
+    position:
+      x: 0.0
+      y: 0.0
+      z: 2.4
+
+# --- Vehicle ---
+vehicle:
+  blueprint: "vehicle.tesla.model3"
+  max_speed: 40.0             # 40 m/s = 144 km/h theoretical max
+
+# --- Observation Space ---
+observation:
+  lidar_dim: 1080
+  command_dim: 384
+  vehicle_state_dim: 5
+
+# --- Action Space ---
+action:
+  steering_range: [-1.0, 1.0]
+  throttle_range: [-1.0, 1.0]
+
+# --- Reward Design (SPEED-FOCUSED) ---
+# Philosophy: Make standing still the WORST outcome, driving fast
+# the BEST outcome, and crashing a moderate penalty (so the agent
+# prefers "fast & risky" over "slow & safe").
+rewards:
+  # Core weights
+  progress_weight: 2.0            # Reward forward movement
+  speed_weight: 3.0               # DOMINANT: 6x original (was 0.5)
+  smoothness_weight: 0.1          # Minimal smoothness penalty
+  collision_penalty: -15.0         # Moderate crash penalty (was -100)
+  lane_deviation_weight: 0.1      # Light lane penalty
+  max_speed: 40.0                 # 40 m/s = 144 km/h
+
+  # Anti-idle system
+  min_speed_threshold: 2.0        # Below 2 m/s = "standing still"
+  idle_penalty: -3.0              # -3.0 per step if below threshold
+
+  # High-speed bonus
+  speed_bonus_threshold: 0.5      # Bonus kicks in above 20 m/s (72 km/h)
+  speed_bonus_weight: 2.0         # Extra reward for racing speeds
+
+  # ── Per-command modifiers ──────────────────────────────────
+  # These create DISTINCT driving styles per command category
+  command_modifiers:
+    aggressive:
+      speed_weight: 5.0           # Push for maximum speed
+      smoothness_weight: 0.05     # Ignore smoothness
+      speed_bonus_weight: 4.0     # Huge bonus for top speeds
+      collision_penalty: -5.0     # Accept crashes for speed
+    conservative:
+      speed_weight: 1.5           # Drive, but not recklessly
+      smoothness_weight: 0.5      # Smooth, controlled driving
+      speed_bonus_weight: 1.0     # Small bonus for speed
+      collision_penalty: -25.0    # Really avoid crashes
+    defensive:
+      speed_weight: 2.0           # Moderate speed
+      lane_deviation_weight: 0.5  # Stay on line
+      speed_bonus_weight: 1.5     # Moderate speed bonus
+      collision_penalty: -20.0    # Avoid crashes
+    neutral: {}                   # Use all default weights
+
+# --- Training ---
+training:
+  algorithm: "PPO"
+  total_timesteps: 2_000_000      # Full 2M run (~2.5 hrs)
+  learning_rate: 3.0e-4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01                  # Standard entropy
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
+  # Curriculum: learn to DRIVE first, then differentiate
+  curriculum:
+    neutral_from_step: 0          # Phase 1: learn basic driving
+    aggressive_from_step: 200_000  # Phase 2: add speed pushing
+    defensive_from_step: 400_000   # Phase 3: add all styles
+    conservative_from_step: 400_000
+
+  # Logging & checkpointing
+  checkpoint_freq: 50_000
+  log_dir: "logs_v2/"
+  checkpoint_dir: "checkpoints_v2/"
+
+# --- Model Architecture ---
+model:
+  lidar_cnn:
+    channels: [64, 128, 256]
+    kernel_sizes: [7, 5, 3]
+    strides: [4, 2, 2]
+  command_mlp:
+    hidden_dim: 128
+  fusion_mlp:
+    hidden_dims: [256, 128]
+  features_dim: 128
+
+# --- Evaluation ---
+evaluation:
+  n_episodes: 50
+  deterministic: true
+  save_trajectories: true

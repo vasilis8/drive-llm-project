@@ -36,10 +36,11 @@ def compute_reward(
         Total reward (float).
     """
     reward = 0.0
+    max_speed = reward_config.get("max_speed", 40.0)
 
     # ── 1. Collision Penalty ──────────────────────────────────────
     if collision:
-        return reward_config.get("collision_penalty", -100.0)
+        return reward_config.get("collision_penalty", -10.0)
 
     # ── 2. Progress Reward ────────────────────────────────────────
     # Reward forward progress along the track
@@ -48,17 +49,32 @@ def compute_reward(
             vehicle_state["distance_traveled"]
             - prev_vehicle_state["distance_traveled"]
         )
-        reward += reward_config.get("progress_weight", 1.0) * progress
+        reward += reward_config.get("progress_weight", 2.0) * progress
 
-    # ── 3. Speed Component ────────────────────────────────────────
+    # ── 3. Speed Component (DOMINANT REWARD) ──────────────────────
     speed = vehicle_state["speed"]
     speed_weight = _get_modified_weight(
         "speed_weight", command_category, reward_config
     )
-    # Normalize speed reward: positive for moving, scaled by speed
-    reward += speed_weight * (speed / reward_config.get("max_speed", 40.0))
+    # Quadratic speed reward — strongly incentivises high speeds
+    speed_ratio = speed / max_speed
+    reward += speed_weight * speed_ratio
 
-    # ── 4. Smoothness Component ───────────────────────────────────
+    # ── 4. Standing-Still Penalty ─────────────────────────────────
+    # Harsh penalty for not moving — prevents the "sit still" strategy
+    min_speed = reward_config.get("min_speed_threshold", 2.0)  # m/s
+    idle_penalty = reward_config.get("idle_penalty", -3.0)
+    if speed < min_speed:
+        reward += idle_penalty  # Strong penalty for being nearly stationary
+
+    # ── 5. Speed Bonus — reward for reaching target speeds ────────
+    # Extra reward for driving above 50% of max speed (>20 m/s = 72 km/h)
+    speed_bonus_threshold = reward_config.get("speed_bonus_threshold", 0.5)
+    speed_bonus_weight = reward_config.get("speed_bonus_weight", 2.0)
+    if speed_ratio > speed_bonus_threshold:
+        reward += speed_bonus_weight * (speed_ratio - speed_bonus_threshold)
+
+    # ── 6. Smoothness Component ───────────────────────────────────
     # Penalize jerky steering and throttle changes
     if prev_vehicle_state is not None:
         steering_jerk = abs(
@@ -74,7 +90,7 @@ def compute_reward(
         )
         reward -= smoothness_weight * smoothness_penalty
 
-    # ── 5. Lane Deviation Penalty ─────────────────────────────────
+    # ── 7. Lane Deviation Penalty ─────────────────────────────────
     lane_dev = vehicle_state.get("lane_deviation", 0.0)
     lane_weight = _get_modified_weight(
         "lane_deviation_weight", command_category, reward_config

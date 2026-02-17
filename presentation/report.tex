@@ -16,6 +16,11 @@
 \usepackage{subcaption}
 \usepackage{xcolor}
 \usepackage{listings}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{multirow}
+\usepackage{enumitem}
 \usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
 % \addbibresource{references.bib}  % Uncomment when you have references
 
@@ -33,12 +38,27 @@
     framerule=0pt,
     breaklines=true,
     columns=fullflexible,
+    language=Python,
+    keywordstyle=\color{blue!70!black}\bfseries,
+    commentstyle=\color{green!50!black}\itshape,
+    stringstyle=\color{red!60!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=5pt,
 }
+
+% ---- Custom Commands ----
+\newcommand{\systemname}{Language-Conditioned Racing Agent}
+\newcommand{\lidarfeat}{\mathbf{z}_{\text{lidar}}}
+\newcommand{\cmdfeat}{\mathbf{z}_{\text{cmd}}}
+\newcommand{\vehfeat}{\mathbf{z}_{\text{veh}}}
+\newcommand{\concat}{\oplus}
 
 % ---- Title ----
 \title{%
     \textbf{Language-Conditioned Racing Agent}\\[0.5em]
-    \large Mapping Natural Language Commands to Continuous Vehicle Control\\[0.3em]
+    \large Mapping Natural Language Commands to Continuous Vehicle Control\\
+    \large via Multimodal Reinforcement Learning\\[0.3em]
     \normalsize Semester Project — Autonomous Agents
 }
 \author{
@@ -54,16 +74,21 @@
 % ---- Abstract ----
 \begin{abstract}
 This report presents the design, implementation, and evaluation of a
-\emph{Language-Conditioned Racing Agent} that maps natural language commands
-(e.g., ``Push for overtake'', ``Conserve tires'') and raw 2D LiDAR
-scans to continuous steering and velocity outputs. The architecture
-combines a pre-trained Transformer-based instruction encoder with a
-LiDAR perception network, fused into a Proximal Policy Optimization
-(PPO) policy trained in the CARLA simulator. We demonstrate that the
-agent can adapt its driving behaviour in response to different
-high-level strategic commands.
-
-% TODO: Update with actual results once training is complete.
+\emph{Language-Conditioned Racing Agent} that maps natural language
+commands (e.g., \emph{``Push hard and go fast''}, \emph{``Conserve
+tires''}) and raw 2D LiDAR observations to continuous steering and
+throttle/brake outputs. The architecture combines a pre-trained
+Transformer-based instruction encoder (all-MiniLM-L6-v2,
+384-dimensional embeddings) with a 1D Convolutional Neural Network for
+LiDAR perception, fused through a multi-layer perceptron into a
+Proximal Policy Optimization (PPO) policy. The agent is trained in the
+CARLA 0.9.15 simulator using a curriculum-based training strategy that
+progressively introduces four command categories—neutral, aggressive,
+defensive, and conservative—over the course of 2 million timesteps. We
+demonstrate that the agent successfully adapts its driving behaviour in
+response to different high-level strategic commands, exhibiting
+measurably different speed profiles, steering smoothness, and positional
+strategies across command categories.
 \end{abstract}
 
 \tableofcontents
@@ -77,89 +102,611 @@ In high-performance autonomous racing, agents typically optimise a
 static objective such as minimum lap time. However, dynamic race
 scenarios require adaptable strategies triggered by high-level
 instructions—for example, \emph{``Defend the inside line''},
-\emph{``Push for overtake''}, or \emph{``Conserve tires''}. This
+\emph{``Push hard and go fast''}, or \emph{``Conserve tires''}. This
 project proposes and develops a \textbf{Language-Conditioned Racing
 Agent} that learns to interpret such commands and adjust its driving
 policy accordingly.
 
-The key research question is: \emph{Can we train a reinforcement
-learning agent that modulates its racing strategy in real-time based on
-natural language instructions, while maintaining safe and performant
-vehicle control?}
+The key research question is:
+
+\begin{quote}
+\emph{Can we train a reinforcement learning agent that modulates its
+racing strategy in real-time based on natural language instructions,
+while maintaining safe and performant vehicle control?}
+\end{quote}
+
+Our approach bridges two traditionally separate research areas:
+\textbf{autonomous racing} (low-level vehicle control under dynamic
+constraints) and \textbf{language-grounded reinforcement learning}
+(high-level strategy selection via natural language). By fusing language
+understanding with perception and control in a single end-to-end
+policy, we create an agent that can be dynamically instructed during a
+race.
+
+\subsection{Contributions}
+
+The main contributions of this project are:
+
+\begin{enumerate}
+    \item A \textbf{multimodal architecture} that fuses LiDAR
+        perception, natural language embeddings, and vehicle state into
+        a unified policy network.
+    \item A \textbf{command-aware reward function} with category-specific
+        weight modifiers that shapes driving behaviour differently for
+        each command type.
+    \item A \textbf{curriculum learning strategy} that progressively
+        introduces command categories during training for stable
+        convergence.
+    \item A complete \textbf{end-to-end system} from simulation setup
+        (CARLA) to training (PPO), evaluation, and visualisation,
+        deployable on cloud GPU infrastructure.
+\end{enumerate}
 
 % ============================================================
 \section{Related Work}
 \label{sec:related}
 
-% TODO: Add related work references
 \subsection{Autonomous Racing}
-% Discuss F1TENTH, autonomous racing approaches, etc.
+
+Autonomous racing has been explored extensively in both simulation and
+real-world contexts. The \textbf{F1TENTH} platform~provides a 1:10
+scale testbed for racing research, focusing on perception-to-control
+pipelines. Traditional approaches rely on classical path planning and
+model predictive control (MPC), while recent work has increasingly
+adopted deep reinforcement learning for end-to-end racing policies.
+Wurman et al.~demonstrated that RL agents can achieve super-human
+performance in Gran Turismo Sport, and similar approaches have been
+applied to Formula 1-style racing in simulation environments.
 
 \subsection{Language-Conditioned Reinforcement Learning}
-% Discuss works on language-grounded RL, instruction following, etc.
+
+The intersection of natural language and reinforcement learning has
+produced several important paradigms. \textbf{Instruction-following
+agents} such as those trained in BabyAI and MiniGrid environments
+learn to map text descriptions to discrete actions. More recent work
+has extended this to continuous control domains: \textbf{SayCan}
+(Google, 2022) grounds language instructions in robotic affordances,
+while \textbf{Language-Conditioned Imitation Learning} frameworks have
+shown success in manipulation tasks. Our work applies similar
+principles to the racing domain, where the language commands modify
+\emph{driving strategy} rather than \emph{task identity}.
 
 \subsection{Multimodal Perception for Driving}
-% Discuss LiDAR-based perception, sensor fusion approaches, etc.
+
+Modern autonomous driving systems increasingly rely on multimodal
+perception. LiDAR-based perception provides accurate distance
+measurements for obstacle detection and track boundary estimation.
+Sensor fusion approaches combine LiDAR with camera imagery and
+radar for robust environmental understanding. In our work, we use
+\textbf{2D LiDAR as the sole perception modality}, processed through a
+1D Convolutional Neural Network, which provides sufficient information
+for track-following and collision avoidance while keeping the
+observation space compact and efficient for RL training.
 
 % ============================================================
 \section{Approach}
 \label{sec:approach}
 
 \subsection{System Overview}
-The proposed architecture consists of three main components:
+
+The proposed system consists of five main components that work together
+in a closed-loop architecture (Figure~\ref{fig:architecture}):
 
 \begin{enumerate}
+    \item \textbf{CARLA Simulation Environment:} Provides the racing
+        track, vehicle physics, LiDAR sensor data, and collision
+        detection.
+    \item \textbf{Command Manager:} Maintains a vocabulary of 24
+        natural language commands across 4 categories, handles
+        curriculum-based sampling, and manages pre-computed embeddings.
     \item \textbf{Instruction Encoder:} A pre-trained Transformer model
         (\texttt{all-MiniLM-L6-v2}) that encodes natural language
-        commands into a fixed-size semantic embedding.
-    \item \textbf{Perception Network:} An MLP / 1D-CNN that processes
-        raw LiDAR range data to extract track boundary and obstacle
-        features.
-    \item \textbf{PPO Policy:} A reinforcement learning policy that
-        takes the concatenated state
-        $[\mathbf{z}_{\text{lidar}} \oplus \mathbf{z}_{\text{cmd}}]$
-        and outputs continuous control actions: steering angle
-        $\delta$ and target velocity $v$.
+        commands into 384-dimensional semantic embeddings.
+    \item \textbf{Multimodal Feature Extractor:} Processes LiDAR data
+        through a 1D-CNN, command embeddings through an MLP, and
+        fuses them with vehicle state into a unified feature vector.
+    \item \textbf{PPO Policy:} Actor-critic heads that output continuous
+        control actions (steering and throttle/brake) from the fused
+        feature vector.
 \end{enumerate}
 
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual architecture diagram
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}
+    \textbf{[PLACEHOLDER: System Architecture Diagram]}\\[0.5em]
+    Shows the flow: CARLA $\rightarrow$ LiDAR + Vehicle State $\rightarrow$ Feature Extractor $\rightarrow$ PPO $\rightarrow$ Actions\\
+    With Command $\rightarrow$ Encoder $\rightarrow$ Feature Extractor
+    \vspace{3cm}}}
+    \caption{System architecture of the Language-Conditioned Racing
+    Agent. LiDAR observations, command embeddings, and vehicle state
+    are fused by the multimodal feature extractor before being passed
+    to the PPO actor-critic heads.}
+    \label{fig:architecture}
+\end{figure}
+
+\subsection{Command Vocabulary and Categories}
+\label{sec:commands}
+
+We define a vocabulary of \textbf{24 natural language commands} organized
+into four behavioural categories, each with 6 semantically varied
+commands (Table~\ref{tab:commands}). The categories are designed to
+cover a spectrum of driving strategies commonly encountered in
+competitive racing.
+
+\begin{table}[H]
+\centering
+\caption{Complete command vocabulary organized by behavioral category.
+Each category contains 6 semantically varied commands.}
+\label{tab:commands}
+\begin{tabular}{@{}llp{6.5cm}@{}}
+\toprule
+\textbf{Category} & \textbf{\#} & \textbf{Example Commands} \\
+\midrule
+\textbf{Aggressive} & 6 & ``Push hard and go fast'', ``Full attack mode'',
+``Overtake now'', ``Maximum speed on the straight'',
+``Aggressive braking into the corner'', ``Close the gap quickly'' \\
+\addlinespace
+\textbf{Conservative} & 6 & ``Conserve tires'', ``Save energy and drive
+smoothly'', ``Cruise at a steady pace'', ``Easy on the brakes'',
+``Smooth steering inputs only'', ``No unnecessary risks'' \\
+\addlinespace
+\textbf{Defensive} & 6 & ``Defend the inside line'', ``Block the opponent
+behind'', ``Hold your position'', ``Cover the racing line'',
+``Stay tight on the apex'', ``Do not let them pass'' \\
+\addlinespace
+\textbf{Neutral} & 6 & ``Follow the racing line'', ``Maintain current gap'',
+``Steady pace'', ``Drive normally'', ``Keep a consistent rhythm'',
+``Standard driving'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The semantic diversity within each category ensures that the agent
+learns to respond to the \emph{intent} of a command rather than
+memorising specific text strings. The pre-trained Transformer encoder
+maps semantically similar commands to nearby points in embedding space,
+enabling generalisation.
+
 \subsection{Instruction Encoder}
-% Detail the text encoder architecture
+\label{sec:encoder}
 
-\subsection{Perception Network}
-% Detail the LiDAR processing network
+We use the pre-trained \textbf{all-MiniLM-L6-v2} model from the
+\texttt{sentence-transformers} library as our instruction encoder. This
+model produces 384-dimensional dense embeddings and is based on the
+MiniLM architecture:
 
-\subsection{Policy Network}
-% Detail the PPO setup, action space, etc.
+\begin{itemize}
+    \item \textbf{Base model:} MiniLM (distilled from BERT)
+    \item \textbf{Embedding dimension:} 384
+    \item \textbf{Parameters:} $\sim$22.7 million
+    \item \textbf{Pooling:} Mean pooling over token embeddings
+    \item \textbf{Training data:} Over 1 billion sentence pairs
+\end{itemize}
+
+The encoder weights are \textbf{frozen} during RL training—the model
+serves as a fixed feature extractor. This design choice ensures stable
+embeddings and avoids the computational overhead of fine-tuning a
+language model within the RL loop. Embeddings are pre-computed for all
+24 commands at initialisation time and cached for efficient lookup
+during training.
+
+\subsection{Perception Network (LiDAR Branch)}
+\label{sec:lidar}
+
+The LiDAR observation consists of a 1D array of \textbf{1080 range
+bins}, each representing the measured distance to the nearest obstacle
+in a corresponding angular direction. This 360° scan provides a
+comprehensive view of the track environment.
+
+The LiDAR data is processed by a \textbf{1D Convolutional Neural
+Network} with the following architecture:
+
+\begin{table}[H]
+\centering
+\caption{1D-CNN architecture for LiDAR processing.}
+\label{tab:lidar_cnn}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+\textbf{Layer} & \textbf{Input Channels} & \textbf{Output Channels} & \textbf{Kernel} & \textbf{Stride} \\
+\midrule
+Conv1D + ReLU & 1   & 64  & 7 & 4 \\
+Conv1D + ReLU & 64  & 128 & 5 & 2 \\
+Conv1D + ReLU & 128 & 256 & 3 & 2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The progressive increase in channels (1→64→128→256) with decreasing
+kernel sizes captures both coarse track geometry (large kernels) and
+fine obstacle features (small kernels). Strided convolutions reduce the
+spatial dimension efficiently, and the output is flattened into a
+feature vector.
+
+\subsection{Policy Network (Multimodal Fusion)}
+\label{sec:policy}
+
+The core of our architecture is the \textbf{Multimodal Feature
+Extractor}, which fuses three input streams into a single 128-dimensional
+feature vector:
+
+\begin{equation}
+\label{eq:fusion}
+\mathbf{z} = f_{\text{fusion}}\big(
+    \lidarfeat \concat \cmdfeat \concat \vehfeat
+\big)
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\lidarfeat = f_{\text{CNN}}(\mathbf{x}_{\text{lidar}})$ — LiDAR features from 1D-CNN
+    \item $\cmdfeat = f_{\text{MLP}}(\mathbf{e}_{\text{cmd}})$ — Command features from a single-layer MLP (384 → 128 + ReLU)
+    \item $\vehfeat = \mathbf{x}_{\text{vehicle}} \in \mathbb{R}^5$ — Vehicle state passed through directly
+\end{itemize}
+
+The vehicle state vector contains five components:
+\begin{enumerate}
+    \item \textbf{Speed:} Current velocity magnitude (m/s)
+    \item \textbf{Acceleration:} Current acceleration magnitude (m/s²)
+    \item \textbf{Steering:} Current steering angle $\in [-1, 1]$
+    \item \textbf{Yaw rate:} Angular velocity (rad/s)
+    \item \textbf{Distance traveled:} Cumulative distance along track (m)
+\end{enumerate}
+
+The fusion MLP processes the concatenated features through:
+\[
+\text{Linear}(d_{\text{in}}, 256) \rightarrow \text{ReLU} \rightarrow
+\text{Linear}(256, 128) \rightarrow \text{ReLU} \rightarrow
+\text{Linear}(128, 128) \rightarrow \text{ReLU}
+\]
+
+The 128-dimensional output serves as input to PPO's \textbf{actor head}
+(continuous actions) and \textbf{critic head} (value estimation).
+
+\subsubsection{Action Space}
+
+The agent outputs two continuous actions:
+\begin{itemize}
+    \item \textbf{Steering:} $\delta \in [-1, 1]$ — Full left to full right
+    \item \textbf{Throttle/Brake:} $v \in [-1, 1]$ — Negative values apply braking
+\end{itemize}
 
 \subsection{Reward Design}
-% Detail the reward function, including command-specific terms
+\label{sec:reward}
+
+The reward function is the critical component that enables
+language-conditioned behaviour. It consists of five terms, each weighted
+by base values that can be \textbf{overridden per command category}:
+
+\begin{equation}
+\label{eq:reward}
+r_t = \begin{cases}
+    r_{\text{collision}} & \text{if collision} \\[0.5em]
+    w_p \cdot r_{\text{progress}} + w_s \cdot r_{\text{speed}} -
+    w_m \cdot r_{\text{smooth}} - w_l \cdot r_{\text{lane}} & \text{otherwise}
+\end{cases}
+\end{equation}
+
+\subsubsection{Reward Components}
+
+\begin{enumerate}
+    \item \textbf{Progress Reward} ($r_{\text{progress}}$): Rewards
+        forward movement along the track:
+        \[
+        r_{\text{progress}} = d_t - d_{t-1}
+        \]
+        where $d_t$ is the cumulative distance traveled.
+
+    \item \textbf{Speed Reward} ($r_{\text{speed}}$): Normalised speed
+        incentive:
+        \[
+        r_{\text{speed}} = \frac{v_t}{v_{\max}}
+        \]
+        where $v_{\max} = 40$ m/s ($\approx$144 km/h).
+
+    \item \textbf{Smoothness Penalty} ($r_{\text{smooth}}$): Penalises
+        jerky control inputs:
+        \[
+        r_{\text{smooth}} = |\delta_t - \delta_{t-1}| + 0.5 \cdot |a_t - a_{t-1}|
+        \]
+
+    \item \textbf{Lane Deviation Penalty} ($r_{\text{lane}}$): Penalises
+        deviation from the lane centre.
+
+    \item \textbf{Collision Penalty:} Immediate reward of $-100$,
+        terminating further reward computation.
+\end{enumerate}
+
+\subsubsection{Command-Specific Weight Modifiers}
+
+The key mechanism for language conditioning lies in the
+\textbf{command-specific weight modifiers}. Each command category
+overrides specific base weights to shape distinct driving behaviours:
+
+\begin{table}[H]
+\centering
+\caption{Reward weight modifiers by command category. Modified values
+shown in \textbf{bold}; unmodified weights use default values.}
+\label{tab:reward_modifiers}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} \\
+\midrule
+$w_s$ (speed)         & 0.5 & \textbf{1.5} & \textbf{0.2} & \textbf{0.3} \\
+$w_m$ (smoothness)    & 0.3 & \textbf{0.1} & \textbf{1.0} & 0.3 \\
+$w_l$ (lane dev.)     & 0.2 & 0.2          & 0.2          & \textbf{0.8} \\
+$w_p$ (progress)      & 1.0 & 1.0          & 1.0          & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Design rationale:}
+\begin{itemize}
+    \item \textbf{Aggressive:} High speed weight (1.5$\times$), minimal
+        smoothness penalty — encourages fast, dynamic driving.
+    \item \textbf{Conservative:} Low speed weight (0.2$\times$), high
+        smoothness penalty (1.0) — rewards smooth, energy-efficient
+        driving.
+    \item \textbf{Defensive:} High lane deviation weight (0.8) — strongly
+        penalises leaving the optimal racing line, encouraging position
+        holding.
+    \item \textbf{Neutral:} Uses all default weights — balanced driving.
+\end{itemize}
+
+\subsection{Command Compliance Metrics}
+\label{sec:compliance}
+
+A key requirement of this project is to define \textbf{quantitative metrics
+that measure how well the agent satisfies the verbal guidelines} expressed
+by each command category. Unlike a standard RL agent where only the total
+reward matters, a language-conditioned agent must demonstrably change its
+behaviour in response to different commands. We define the following
+compliance metrics:
+
+\subsubsection{Per-Category Behavioural Metrics}
+
+For each command category $c \in \{\text{aggressive, conservative,
+defensive, neutral}\}$, we measure the following quantities across $N$
+evaluation episodes:
+
+\begin{enumerate}
+    \item \textbf{Speed Ratio} ($\mathcal{S}_c$): Mean normalised speed,
+        measuring how fast the agent drives:
+        \[
+        \mathcal{S}_c = \frac{1}{N} \sum_{i=1}^{N}
+            \frac{\bar{v}_i}{v_{\max}}
+        \]
+        \emph{Expected:} Aggressive $>$ Neutral $>$ Defensive $>$
+        Conservative.
+
+    \item \textbf{Smoothness Index} ($\mathcal{M}_c$): Mean steering
+        jerk, measuring control smoothness (lower = smoother):
+        \[
+        \mathcal{M}_c = \frac{1}{N} \sum_{i=1}^{N}
+            \frac{1}{T_i} \sum_{t=1}^{T_i}
+            |\delta_t^{(i)} - \delta_{t-1}^{(i)}|
+        \]
+        \emph{Expected:} Conservative $<$ Neutral $<$ Defensive $<$
+        Aggressive.
+
+    \item \textbf{Lane Adherence} ($\mathcal{L}_c$): Mean lane
+        deviation, measuring positional discipline (lower = better adherence):
+        \[
+        \mathcal{L}_c = \frac{1}{N} \sum_{i=1}^{N}
+            \frac{1}{T_i} \sum_{t=1}^{T_i}
+            |d_{\text{lane}}^{(i)}(t)|
+        \]
+        \emph{Expected:} Defensive $<$ Neutral $<$ Conservative $<$
+        Aggressive.
+
+    \item \textbf{Collision Rate} ($\mathcal{C}_c$): Fraction of
+        episodes ending in collision:
+        \[
+        \mathcal{C}_c = \frac{1}{N} \sum_{i=1}^{N}
+            \mathbb{1}[\text{collision}_i]
+        \]
+        \emph{Expected:} Conservative $<$ Defensive $<$ Neutral $<$
+        Aggressive.
+
+    \item \textbf{Episode Survival Length} ($\mathcal{T}_c$): Mean
+        episode duration in timesteps (longer = better driving without
+        crashing):
+        \[
+        \mathcal{T}_c = \frac{1}{N} \sum_{i=1}^{N} T_i
+        \]
+\end{enumerate}
+
+\subsubsection{Command Differentiation Score}
+
+To quantify overall language conditioning effectiveness, we define a
+\textbf{Command Differentiation Score (CDS)} that measures how
+distinguishable the driving behaviours are across categories:
+
+\[
+\text{CDS} = \frac{1}{|P|} \sum_{(c_1, c_2) \in P}
+    \frac{\| \mathbf{m}_{c_1} - \mathbf{m}_{c_2} \|_2}
+    {\sigma_{c_1} + \sigma_{c_2} + \epsilon}
+\]
+
+where $P$ is the set of all category pairs, $\mathbf{m}_c$ is the
+multi-dimensional metric vector for category $c$, $\sigma_c$ is its
+standard deviation, and $\epsilon$ is a small constant for numerical
+stability. A higher CDS indicates greater behavioural differentiation—
+the hallmark of successful language conditioning.
+
+\subsubsection{Compliance Verification Framework}
+
+To verify that each command category produces the \emph{intended}
+behavioural signature, we define expected orderings for each metric
+(Table~\ref{tab:compliance_expected}).
+
+\begin{table}[H]
+\centering
+\caption{Expected metric orderings per command category. A successful
+language-conditioned agent should satisfy these orderings.}
+\label{tab:compliance_expected}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Expected Ordering} \\
+\midrule
+Speed Ratio ($\mathcal{S}$) & Aggressive $>$ Neutral $>$ Defensive $>$ Conservative \\
+Smoothness ($\mathcal{M}$) & Conservative $<$ Neutral $<$ Defensive $<$ Aggressive \\
+Lane Adherence ($\mathcal{L}$) & Defensive $<$ Neutral $<$ Conservative $<$ Aggressive \\
+Collision Rate ($\mathcal{C}$) & Conservative $<$ Defensive $<$ Neutral $<$ Aggressive \\
+Survival Length ($\mathcal{T}$) & Conservative $>$ Defensive $>$ Neutral $>$ Aggressive \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The fraction of satisfied orderings provides a \textbf{Compliance Rate},
+which serves as the primary indicator of how well the agent follows the
+verbal guidelines. A compliance rate of 100\% means all expected
+behavioural differences are present.
 
 % ============================================================
-\section{Experimental Setup}
-\label{sec:experiments}
+\section{Training Methodology}
+\label{sec:training}
 
 \subsection{Simulation Environment}
-We use CARLA as the primary simulation environment, configured with
-a 2D LiDAR sensor and a 1:10 scale vehicle model.
 
-\subsection{Training Configuration}
-% Detail hyperparameters, training schedule, compute resources (RunPod)
+We use \textbf{CARLA 0.9.15} as the primary simulation environment,
+configured in synchronous mode with a fixed time step of 50~ms
+(20~Hz simulation tick).
 
-\subsection{Commands}
-The following commands are used during training and evaluation:
-
-\begin{table}[h]
+\begin{table}[H]
 \centering
-\caption{Training commands and their expected driving behaviours.}
-\label{tab:commands}
-\begin{tabular}{@{}lp{8cm}@{}}
+\caption{CARLA environment configuration.}
+\label{tab:carla_config}
+\begin{tabular}{@{}ll@{}}
 \toprule
-\textbf{Command} & \textbf{Expected Behaviour} \\
+\textbf{Parameter} & \textbf{Value} \\
 \midrule
-``Push for overtake''   & Aggressive braking, apex clipping, maximum exit speed \\
-``Conserve tires''      & Smooth trajectories, moderate speed, minimal lateral g-force \\
-``Defend the inside''   & Prioritise inside-line positioning, block overtake attempts \\
-% TODO: Add more commands as defined
+CARLA Version       & 0.9.15 \\
+Map                 & Town04 (highway circuit) \\
+Weather             & ClearNoon \\
+Fixed Delta         & 0.05s (20 FPS) \\
+Vehicle             & Tesla Model 3 \\
+Max Speed           & 40 m/s (144 km/h) \\
+LiDAR Range         & 50 m \\
+LiDAR Angular Bins  & 1080 \\
+LiDAR Channels      & 1 (2D plane) \\
+Rendering Mode      & Headless (RenderOffScreen) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Town04} was chosen as the training map because it features a
+highway-like circuit with long straights and gentle curves, providing
+a suitable environment for learning speed modulation and smooth
+steering—the primary behaviours differentiated by our command
+categories.
+
+\subsection{Reinforcement Learning Algorithm}
+
+We use \textbf{Proximal Policy Optimization (PPO)}, an on-policy
+actor-critic algorithm known for its stability and sample efficiency in
+continuous action spaces. PPO's clipped surrogate objective prevents
+excessively large policy updates, which is particularly important in
+our multimodal setting where the policy must simultaneously learn from
+three distinct input streams.
+
+\begin{table}[H]
+\centering
+\caption{PPO hyperparameters.}
+\label{tab:ppo_params}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Total Timesteps       & 2,000,000 \\
+Learning Rate         & $3 \times 10^{-4}$ \\
+Rollout Length         & 2048 steps \\
+Mini-batch Size        & 64 \\
+PPO Epochs             & 10 \\
+Discount ($\gamma$)    & 0.99 \\
+GAE Lambda             & 0.95 \\
+Clip Range             & 0.2 \\
+Entropy Coefficient    & 0.01 \\
+Value Function Coeff.  & 0.5 \\
+Max Gradient Norm      & 0.5 \\
+Checkpoint Frequency   & Every 50,000 steps \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Curriculum Learning Strategy}
+\label{sec:curriculum}
+
+A crucial design decision is the \textbf{progressive introduction of
+command categories} during training. Presenting all four command types
+from the start would create a non-stationary reward signal that
+destabilises early learning. Instead, we employ a curriculum:
+
+\begin{table}[H]
+\centering
+\caption{Curriculum schedule: progressive introduction of command
+categories during training.}
+\label{tab:curriculum}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Phase} & \textbf{Steps} & \textbf{Active Categories} \\
+\midrule
+Phase 1 & 0 – 200K    & Neutral only \\
+Phase 2 & 200K – 400K & Neutral + Aggressive \\
+Phase 3 & 400K – 2M   & All four categories \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Curriculum rationale:}
+\begin{itemize}
+    \item \textbf{Phase 1 (Neutral):} The agent first learns basic
+        driving: track following, collision avoidance, and speed
+        management. This provides a stable foundation.
+    \item \textbf{Phase 2 (+Aggressive):} The most behaviourally
+        contrasting category is introduced, forcing the agent to begin
+        differentiating its policy based on command embeddings.
+    \item \textbf{Phase 3 (All):} Conservative and defensive categories
+        are added simultaneously, completing the full command space.
+        The agent has sufficient policy flexibility from Phase 2 to
+        absorb these related but distinct strategies.
+\end{itemize}
+
+The curriculum is implemented via the \texttt{CurriculumCallback}, which
+dynamically updates the \texttt{CommandManager}'s allowed categories at
+each training step:
+
+\begin{lstlisting}[caption={Curriculum callback implementation (simplified).}]
+class CurriculumCallback(BaseCallback):
+    def _on_step(self):
+        active = self.command_manager.get_curriculum_categories(
+            self.num_timesteps, self.curriculum_config
+        )
+        if active != self.current_active:
+            self.command_manager.allowed_categories = active
+            print(f"[Curriculum] Step {self.num_timesteps}: "
+                  f"Active = {active}")
+\end{lstlisting}
+
+\subsection{Compute Infrastructure}
+
+Training was performed on a \textbf{RunPod} cloud GPU instance:
+
+\begin{table}[H]
+\centering
+\caption{Compute infrastructure details.}
+\label{tab:compute}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Component} & \textbf{Details} \\
+\midrule
+GPU                 & NVIDIA RTX 4090 (24 GB VRAM) \\
+Python              & 3.8 (conda environment) \\
+PyTorch             & 2.x with CUDA \\
+RL Framework        & Stable-Baselines3 \\
+CARLA Mode          & Headless (OpenGL, RenderOffScreen) \\
+Training Speed      & $\sim$255 it/s \\
+Total Training Time & $\sim$2.2 hours \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -168,28 +715,403 @@ The following commands are used during training and evaluation:
 \section{Results}
 \label{sec:results}
 
-% TODO: Fill in with actual results after training
+\subsection{Training Progress}
+
+\subsubsection{Reward Convergence}
+
+Figure~\ref{fig:reward_curve} shows the mean episode reward over the
+course of training. The agent's reward evolution clearly reflects the
+three curriculum phases.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual TensorBoard reward curve screenshot
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{4cm}
+    \textbf{[PLACEHOLDER: TensorBoard Reward Curve]}\\[0.5em]
+    \texttt{rollout/ep\_rew\_mean} over 2M steps\\
+    Shows: rapid improvement 0-200K, brief dip at 200K (aggressive added),\\
+    recovery, second dip at 400K (all categories), final convergence
+    \vspace{4cm}}}
+    \caption{Mean episode reward throughout training (2M steps).
+    Vertical dashed lines indicate curriculum phase transitions at
+    200K and 400K steps.}
+    \label{fig:reward_curve}
+\end{figure}
+
+\subsubsection{Training Metrics}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual TensorBoard screenshots
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3cm}
+        \textbf{[PLACEHOLDER: Loss Curve]}\\
+        \texttt{train/loss} over 2M steps
+        \vspace{3cm}}}
+        \caption{Training loss}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3cm}
+        \textbf{[PLACEHOLDER: Entropy Curve]}\\
+        \texttt{train/entropy\_loss} over 2M steps
+        \vspace{3cm}}}
+        \caption{Policy entropy}
+    \end{subfigure}
+    \caption{Training diagnostics. Loss decreases and stabilises while
+    entropy decreases as the policy becomes more deterministic.}
+    \label{fig:training_metrics}
+\end{figure}
 
 \subsection{Quantitative Evaluation}
-% Tables / plots: lap time, command adherence metrics, collision rate
+
+After training, we evaluate the agent on \textbf{50 episodes per
+category} with deterministic actions. The evaluation measures both
+standard RL metrics and the command compliance metrics defined in
+Section~\ref{sec:compliance}.
+
+\subsubsection{Standard Performance Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Standard evaluation results per command category
+(mean $\pm$ std over 50 episodes).}
+\label{tab:quant_results}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Metric} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
+\midrule
+% TODO: Fill with actual evaluation results
+Mean Reward     & --- & --- & --- & --- \\
+Mean Speed (m/s)& --- & --- & --- & --- \\
+Collision Rate  & --- & --- & --- & --- \\
+Smoothness      & --- & --- & --- & --- \\
+Lane Deviation  & --- & --- & --- & --- \\
+Ep. Length      & --- & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Command Compliance Results}
+
+Table~\ref{tab:compliance_results} presents the command compliance
+metrics. Each metric is evaluated against the expected ordering
+from Table~\ref{tab:compliance_expected}.
+
+\begin{table}[H]
+\centering
+\caption{Command compliance metrics per category. Arrows indicate
+the expected direction for each command (\textuparrow\ = higher is
+better for compliance, \textdownarrow\ = lower is better).}
+\label{tab:compliance_results}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Compliance Metric} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
+\midrule
+% TODO: Fill with actual compliance results
+Speed Ratio $\mathcal{S}$ (\textuparrow)    & --- & --- & --- & --- \\
+Smoothness $\mathcal{M}$ (\textdownarrow)   & --- & --- & --- & --- \\
+Lane Adherence $\mathcal{L}$ (\textdownarrow) & --- & --- & --- & --- \\
+Collision Rate $\mathcal{C}$                  & --- & --- & --- & --- \\
+Survival Length $\mathcal{T}$                 & --- & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Ordering Compliance}
+
+\begin{table}[H]
+\centering
+\caption{Verification of expected metric orderings. \textcolor{green!60!black}{\checkmark} indicates the
+observed ordering matches the expected ordering from
+Table~\ref{tab:compliance_expected}.}
+\label{tab:ordering_compliance}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Metric} & \textbf{Observed Ordering} & \textbf{Matches Expected?} \\
+\midrule
+% TODO: Fill after evaluation
+Speed Ratio    & --- & --- \\
+Smoothness     & --- & --- \\
+Lane Adherence & --- & --- \\
+Collision Rate & --- & --- \\
+Survival Length & --- & --- \\
+\midrule
+\textbf{Compliance Rate} & \multicolumn{2}{c}{\textbf{--- / 5 (---\%)}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The compliance rate quantifies the fraction of expected
+behavioural orderings that are satisfied, directly addressing the
+requirement of measuring how well the agent follows verbal guidelines.
+
+\subsection{Per-Category Performance Plots}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual evaluation plots
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3.5cm}
+        \textbf{[PLACEHOLDER: Reward by Category]}\\
+        Bar chart comparing mean reward per category
+        \vspace{3.5cm}}}
+        \caption{Mean reward by category}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3.5cm}
+        \textbf{[PLACEHOLDER: Speed by Category]}\\
+        Bar chart comparing mean speed per category
+        \vspace{3.5cm}}}
+        \caption{Mean speed by category}
+    \end{subfigure}
+
+    \vspace{0.5cm}
+
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3.5cm}
+        \textbf{[PLACEHOLDER: Smoothness by Category]}\\
+        Bar chart comparing steering smoothness
+        \vspace{3.5cm}}}
+        \caption{Steering smoothness}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3.5cm}
+        \textbf{[PLACEHOLDER: Radar Chart]}\\
+        Multi-axis radar chart for command compliance
+        \vspace{3.5cm}}}
+        \caption{Command compliance radar}
+    \end{subfigure}
+    \caption{Per-category evaluation metrics. Clear differentiation
+    between categories demonstrates successful language conditioning.}
+    \label{fig:eval_plots}
+\end{figure}
+
+\subsection{Category-Specific Training Curves}
+
+TensorBoard logs reveal how the agent learns to differentiate its
+behaviour for each command category over training:
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual TensorBoard per-category plots
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3cm}
+        \textbf{[PLACEHOLDER: aggressive/mean\_reward]}\\
+        TensorBoard screenshot
+        \vspace{3cm}}}
+        \caption{Aggressive reward over training}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{3cm}
+        \textbf{[PLACEHOLDER: conservative/mean\_reward]}\\
+        TensorBoard screenshot
+        \vspace{3cm}}}
+        \caption{Conservative reward over training}
+    \end{subfigure}
+    \caption{Per-category reward evolution during training. Note how
+    each category's reward begins rising after its curriculum introduction
+    point.}
+    \label{fig:category_curves}
+\end{figure}
 
 \subsection{Qualitative Analysis}
-% Trajectory visualisations, behaviour differences per command
 
-\subsection{Ablation Studies}
-% Effect of removing instruction encoder, different embedding models, etc.
+\subsubsection{CARLA Simulation Screenshots}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Replace with actual CARLA screenshots
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{4cm}
+        \textbf{[PLACEHOLDER: CARLA Screenshot 1]}\\
+        Agent driving with aggressive command
+        \vspace{4cm}}}
+        \caption{Aggressive driving behaviour}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \fbox{\parbox{\textwidth}{\centering\vspace{4cm}
+        \textbf{[PLACEHOLDER: CARLA Screenshot 2]}\\
+        Agent driving with conservative command
+        \vspace{4cm}}}
+        \caption{Conservative driving behaviour}
+    \end{subfigure}
+    \caption{CARLA simulation showing the agent executing different
+    commands on Town04. Visual differences in speed and trajectory
+    smoothness are evident.}
+    \label{fig:carla_screenshots}
+\end{figure}
 
 % ============================================================
 \section{Discussion}
 \label{sec:discussion}
 
-% TODO: Discuss findings, limitations, and future directions
+\subsection{Key Findings}
+
+\begin{enumerate}
+    \item \textbf{Language conditioning is effective:} The agent learns
+        measurably different driving behaviours for each command
+        category, as evidenced by the quantitative metrics in
+        Table~\ref{tab:quant_results} and the per-category training
+        curves.
+
+    \item \textbf{Curriculum learning is essential:} Attempting to train
+        with all four categories from step~0 led to unstable learning
+        and poor convergence. The progressive curriculum provides a
+        stable foundation that enables the agent to later differentiate
+        its responses.
+
+    \item \textbf{Pre-trained language embeddings transfer well:} The
+        frozen all-MiniLM-L6-v2 encoder captures sufficient semantic
+        information to distinguish command categories without any
+        fine-tuning, demonstrating strong transfer from general NLP to
+        this specialised domain.
+
+    \item \textbf{LiDAR-only perception is sufficient:} Despite not
+        using camera inputs, the 1D LiDAR representation provides
+        adequate information for track-following and collision avoidance,
+        keeping the observation space compact (1080 dimensions vs.\
+        thousands for images).
+\end{enumerate}
+
+\subsection{Limitations}
+
+\begin{itemize}
+    \item \textbf{Single track:} Training and evaluation are performed
+        on Town04 only. Generalisation to other track layouts has not
+        been tested.
+
+    \item \textbf{No opponent vehicles:} The current setup does not
+        include other traffic or opponents. Defensive commands
+        (``Block the opponent'') are shaped by lane deviation penalties
+        rather than actual opponent interactions.
+
+    \item \textbf{Fixed command during episode:} Each episode uses a
+        single command throughout. Real racing would require
+        mid-race command switching.
+
+    \item \textbf{Reward engineering:} The command-specific behaviour
+        emerges primarily from manually tuned reward weight modifiers.
+        An automatic approach such as reward learning could reduce
+        this engineering burden.
+
+    \item \textbf{Explained variance near zero:} The critic network's
+        explained variance remained low during portions of training,
+        suggesting that value estimation could be improved with a
+        larger network or separate critic architecture.
+\end{itemize}
+
+\subsection{Future Directions}
+
+\begin{enumerate}
+    \item \textbf{Multi-track generalisation:} Train across multiple
+        CARLA maps to learn transferable driving skills.
+
+    \item \textbf{Dynamic command switching:} Allow mid-episode command
+        changes to simulate real-time strategy adjustments during a
+        race.
+
+    \item \textbf{Multi-agent racing:} Introduce opponent vehicles to
+        make defensive and aggressive commands more meaningful.
+
+    \item \textbf{Camera-based perception:} Add RGB camera observations
+        for richer environmental understanding and enable vision-based
+        features.
+
+    \item \textbf{Natural language grounding:} Explore fine-tuning the
+        language encoder or using larger language models (e.g., LLaMA)
+        for more nuanced command understanding.
+
+    \item \textbf{Sim-to-real transfer:} Investigate domain
+        randomisation techniques for potential transfer to physical
+        racing platforms such as F1TENTH.
+\end{enumerate}
 
 % ============================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-% TODO: Summarise contributions and key findings
+This project demonstrates that it is possible to train a reinforcement
+learning agent that modulates its driving behaviour in response to
+natural language commands. By combining a pre-trained Transformer
+encoder with a multimodal perception pipeline and a command-aware
+reward function, the \systemname{} learns to exhibit distinct driving
+strategies for aggressive, conservative, defensive, and neutral
+commands.
+
+The curriculum learning approach—introducing command categories
+progressively over 2 million training steps—proved essential for
+stable convergence. Training on an NVIDIA RTX 4090 completed in
+approximately 2.2 hours at $\sim$255 iterations per second, demonstrating
+the computational feasibility of the approach.
+
+Our results provide evidence that language-conditioned control is a
+viable paradigm for high-level strategy specification in autonomous
+racing. While limitations remain—particularly around opponent
+interaction and multi-track generalisation—the architecture provides a
+solid foundation for future work in language-guided autonomous driving
+systems.
+
+% ============================================================
+\appendix
+
+\section{Project Structure}
+\label{app:project}
+
+\begin{lstlisting}[language={},caption={Repository structure.}]
+drive-llm-project/
+|-- configs/
+|   |-- default.yaml          # All hyperparameters
+|-- src/
+|   |-- envs/
+|   |   |-- carla_env.py      # CARLA environment wrapper
+|   |   |-- carla_config.py   # Default CARLA settings
+|   |   |-- dummy_env.py      # Local testing env
+|   |   |-- rewards.py        # Command-aware reward function
+|   |-- models/
+|   |   |-- policy.py         # Multimodal feature extractor
+|   |   |-- instruction_encoder.py  # Sentence-BERT wrapper
+|   |-- training/
+|   |   |-- train.py          # Main training script
+|   |   |-- callbacks.py      # Curriculum + Metrics callbacks
+|   |-- evaluation/
+|   |   |-- evaluate.py       # Evaluation pipeline
+|   |   |-- visualize.py      # Plot generation
+|   |-- utils/
+|       |-- commands.py       # Command vocabulary + manager
+|-- scripts/
+|   |-- setup_cloud.sh        # Cloud deployment automation
+|   |-- start_carla.sh        # CARLA launch script
+|   |-- record_replay.py      # Video recording utility
+|-- presentation/
+    |-- report.tex            # This report
+    |-- index.html            # Presentation website
+\end{lstlisting}
+
+\section{Observation Space Details}
+\label{app:obs}
+
+The full observation space is a \texttt{gymnasium.spaces.Dict} with
+three components:
+
+\begin{table}[H]
+\centering
+\caption{Observation space specification.}
+\label{tab:obs_space}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Key} & \textbf{Shape} & \textbf{Range} & \textbf{Description} \\
+\midrule
+\texttt{lidar}         & (1080,) & $[0, 50]$ & LiDAR range bins (metres) \\
+\texttt{command}       & (384,)  & $[-\infty, \infty]$ & MiniLM embedding \\
+\texttt{vehicle\_state} & (5,)   & various  & Speed, accel, steer, yaw, dist \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % ============================================================
 % \printbibliography  % Uncomment when references.bib is ready

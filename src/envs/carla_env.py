@@ -282,22 +282,28 @@ class CarlaEnv(gym.Env):
         }
 
     def _apply_action(self, action: np.ndarray):
-        """Apply control action to the CARLA vehicle."""
+        """Apply control action to the CARLA vehicle.
+
+        Action mapping:
+            action[0] → steering in [-1, 1]
+            action[1] → throttle, remapped from [-1, 1] to [0.3, 1.0]
+                         The car ALWAYS drives forward (this is racing!)
+        """
         import carla
 
         steering = float(np.clip(action[0], -1.0, 1.0))
-        throttle_brake = float(np.clip(action[1], -1.0, 1.0))
+        raw_throttle = float(np.clip(action[1], -1.0, 1.0))
+
+        # Remap [-1, 1] → [0.3, 1.0]: car always moves forward
+        # Agent controls speed via throttle modulation, not stopping
+        min_throttle = 0.3
+        max_throttle = 1.0
+        throttle = min_throttle + (raw_throttle + 1.0) / 2.0 * (max_throttle - min_throttle)
 
         control = carla.VehicleControl()
         control.steer = steering
-
-        if throttle_brake >= 0:
-            control.throttle = throttle_brake
-            control.brake = 0.0
-        else:
-            control.throttle = 0.0
-            control.brake = abs(throttle_brake)
-
+        control.throttle = throttle
+        control.brake = 0.0
         control.hand_brake = False
         self._vehicle.apply_control(control)
 
