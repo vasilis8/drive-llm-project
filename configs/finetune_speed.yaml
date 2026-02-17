@@ -66,24 +66,25 @@ rewards:
   speed_bonus_threshold: 0.5      # Bonus kicks in above 20 m/s (72 km/h)
   speed_bonus_weight: 2.0         # Extra reward for racing speeds
 
+  # Alive bonus — rewards surviving each step (incentivises long episodes)
+  alive_bonus: 0.5                # +0.5 per step survived
+
   # ── Per-command modifiers ──────────────────────────────────
-  # These create DISTINCT driving styles per command category
+  # Differentiation via speed/smoothness weights ONLY.
+  # Collision penalty is the SAME for all categories (-15).
   command_modifiers:
     aggressive:
-      speed_weight: 5.0           # Push for maximum speed
+      speed_weight: 6.0           # 6x base → MUST GO FAST
       smoothness_weight: 0.05     # Ignore smoothness
       speed_bonus_weight: 4.0     # Huge bonus for top speeds
-      collision_penalty: -5.0     # Accept crashes for speed
     conservative:
-      speed_weight: 1.5           # Drive, but not recklessly
+      speed_weight: 1.0           # Low incentive for speed
       smoothness_weight: 0.5      # Smooth, controlled driving
-      speed_bonus_weight: 1.0     # Small bonus for speed
-      collision_penalty: -25.0    # Really avoid crashes
+      speed_bonus_weight: 0.5     # Small bonus for speed
     defensive:
       speed_weight: 2.0           # Moderate speed
       lane_deviation_weight: 0.5  # Stay on line
       speed_bonus_weight: 1.5     # Moderate speed bonus
-      collision_penalty: -20.0    # Avoid crashes
     neutral: {}                   # Use all default weights
 
 # --- Training ---

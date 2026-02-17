@@ -74,7 +74,13 @@ def compute_reward(
     if speed_ratio > speed_bonus_threshold:
         reward += speed_bonus_weight * (speed_ratio - speed_bonus_threshold)
 
-    # ── 6. Smoothness Component ───────────────────────────────────
+    # ── 6. Alive Bonus ────────────────────────────────────────────
+    # Reward surviving each step — makes long episodes at high speed
+    # far more rewarding than short episodes
+    alive_bonus = reward_config.get("alive_bonus", 0.0)
+    reward += alive_bonus
+
+    # ── 7. Smoothness Component ───────────────────────────────────
     # Penalize jerky steering and throttle changes
     if prev_vehicle_state is not None:
         steering_jerk = abs(
@@ -90,7 +96,7 @@ def compute_reward(
         )
         reward -= smoothness_weight * smoothness_penalty
 
-    # ── 7. Lane Deviation Penalty ─────────────────────────────────
+    # ── 8. Lane Deviation Penalty ─────────────────────────────────
     lane_dev = vehicle_state.get("lane_deviation", 0.0)
     lane_weight = _get_modified_weight(
         "lane_deviation_weight", command_category, reward_config

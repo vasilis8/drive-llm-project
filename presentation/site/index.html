@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriveLLM — Language-Conditioned High-Speed Autonomous Racing</title>
+    <meta name="description"
+        content="DriveLLM maps natural language commands to continuous vehicle control using PPO and multimodal sensor fusion in the CARLA simulator.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ====== NAV ====== -->
+    <nav class="nav" id="nav">
+        <div class="nav-inner">
+            <a href="#" class="nav-logo">DriveLLM</a>
+            <div class="nav-links">
+                <a href="#about">About</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#results">Results</a>
+                <a href="#downloads">Downloads</a>
+                <a href="https://github.com/" target="_blank" class="nav-github" aria-label="GitHub">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ====== HERO ====== -->
+    <section class="hero" id="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <p class="hero-tag">Semester Project &mdash; Autonomous Agents</p>
+            <h1>DriveLLM</h1>
+            <p class="hero-subtitle">Language-Conditioned High-Speed<br>Autonomous Racing</p>
+            <p class="hero-desc">Mapping natural language commands to continuous vehicle control<br>using reinforcement
+                learning and multimodal sensor fusion.</p>
+            <div class="hero-meta">
+                <span>Vasilis K.</span>
+                <span class="dot"></span>
+                <span>February 2026</span>
+            </div>
+            <div class="hero-actions">
+                <a href="#downloads" class="btn btn-primary">Get the Paper</a>
+                <a href="https://github.com/" target="_blank" class="btn btn-outline">View Source</a>
+            </div>
+        </div>
+        <div class="scroll-indicator" id="scrollIndicator">
+            <span>Scroll</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- ====== ABOUT ====== -->
+    <section class="section" id="about">
+        <div class="container">
+            <p class="section-label">01 &mdash; Overview</p>
+            <h2>What is DriveLLM?</h2>
+            <div class="about-grid">
+                <div class="about-text">
+                    <p>In high-performance autonomous racing, agents typically optimise a <strong>static
+                            objective</strong> such as minimum lap time. However, real race scenarios demand
+                        <em>adaptive strategies</em> that change on the fly &mdash; push for an overtake, conserve
+                        tires, defend position.</p>
+                    <p>DriveLLM is a reinforcement learning agent that takes <strong>natural language commands</strong>
+                        from a race engineer (e.g., &ldquo;Push hard and go fast&rdquo;, &ldquo;Conserve tires&rdquo;)
+                        and translates them into continuous steering and throttle outputs in real time.</p>
+                    <p>The agent fuses <strong>1080-beam LiDAR</strong> perception with <strong>frozen sentence
+                            embeddings</strong> (all-MiniLM-L6-v2) and vehicle telemetry through a custom multimodal
+                        policy network, trained end-to-end with PPO in the CARLA simulator.</p>
+                </div>
+                <div class="about-cards">
+                    <div class="stat-card">
+                        <span class="stat-value">4</span>
+                        <span class="stat-label">Command Categories</span>
+                        <span class="stat-detail">Aggressive &middot; Conservative &middot; Defensive &middot;
+                            Neutral</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value">24</span>
+                        <span class="stat-label">Language Commands</span>
+                        <span class="stat-detail">6 per category, encoded via sentence transformer</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value">2M</span>
+                        <span class="stat-label">Training Steps</span>
+                        <span class="stat-detail">PPO on NVIDIA RTX 4090, ~3 hrs per run</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== ARCHITECTURE ====== -->
+    <section class="section section-dark" id="architecture">
+        <div class="container">
+            <p class="section-label">02 &mdash; Architecture</p>
+            <h2>Multimodal Fusion Network</h2>
+            <p class="section-desc">Three input modalities are processed independently and fused into a shared
+                representation for the PPO actor-critic heads.</p>
+            <div class="arch-flow">
+                <div class="arch-card">
+                    <div class="arch-header">LiDAR Branch</div>
+                    <div class="arch-body">
+                        <code>1080-dim range array</code>
+                        <div class="arch-arrow-down"></div>
+                        <span>1D-CNN [64, 128, 256]</span>
+                        <div class="arch-arrow-down"></div>
+                        <span>Flatten</span>
+                    </div>
+                </div>
+                <div class="arch-card">
+                    <div class="arch-header">Command Branch</div>
+                    <div class="arch-body">
+                        <code>384-dim embedding</code>
+                        <div class="arch-arrow-down"></div>
+                        <span>Linear(384&rarr;128) + ReLU</span>
+                        <div class="arch-arrow-down"></div>
+                        <span>128-dim features</span>
+                    </div>
+                </div>
+                <div class="arch-card">
+                    <div class="arch-header">Vehicle State</div>
+                    <div class="arch-body">
+                        <code>5-dim telemetry</code>
+                        <div class="arch-arrow-down"></div>
+                        <span>speed, accel, steering,<br>yaw rate, distance</span>
+                        <div class="arch-arrow-down"></div>
+                        <span>Pass-through</span>
+                    </div>
+                </div>
+            </div>
+            <div class="fusion-block">
+                <div class="fusion-label">Concatenate &amp; Fuse</div>
+                <div class="fusion-detail">MLP [256, 128] &rarr; 128-dim feature vector &rarr; PPO Actor / Critic Heads
+                </div>
+            </div>
+
+            <div class="tech-stack">
+                <h3>Technical Stack</h3>
+                <div class="stack-row">
+                    <div class="stack-pill"><strong>Simulation</strong> CARLA 0.9.15</div>
+                    <div class="stack-pill"><strong>NLP</strong> all-MiniLM-L6-v2</div>
+                    <div class="stack-pill"><strong>RL</strong> Stable-Baselines3 (PPO)</div>
+                    <div class="stack-pill"><strong>Compute</strong> RunPod RTX 4090</div>
+                    <div class="stack-pill"><strong>Map</strong> Town04 (Highway)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== METHODOLOGY ====== -->
+    <section class="section" id="methodology">
+        <div class="container">
+            <p class="section-label">03 &mdash; Approach</p>
+            <h2>Training Pipeline</h2>
+            <div class="pipeline">
+                <div class="pipe-step">
+                    <div class="pipe-num">1</div>
+                    <div class="pipe-content">
+                        <h4>Environment Setup</h4>
+                        <p>Deploy CARLA in headless mode on a cloud GPU. Configure LiDAR (1080 beams, 50m range), Tesla
+                            Model 3, and synchronous stepping at 20 Hz.</p>
+                    </div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-num">2</div>
+                    <div class="pipe-content">
+                        <h4>Command Encoding</h4>
+                        <p>24 natural language commands are encoded into 384-dim vectors using a frozen sentence
+                            transformer. Embeddings are cached and normalised.</p>
+                    </div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-num">3</div>
+                    <div class="pipe-content">
+                        <h4>Curriculum Learning</h4>
+                        <p>Phase 1 (0&ndash;200K): Neutral only. Phase 2 (200K&ndash;400K): Add Aggressive. Phase 3
+                            (400K+): All four categories. Agent learns to drive before it learns to differentiate.</p>
+                    </div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-num">4</div>
+                    <div class="pipe-content">
+                        <h4>Reward Shaping</h4>
+                        <p>8-component reward: speed (dominant, command-weighted), progress, alive bonus, smoothness,
+                            lane deviation, idle penalty, collision penalty, and high-speed bonus. Differentiation via
+                            per-category weight modifiers.</p>
+                    </div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-num">5</div>
+                    <div class="pipe-content">
+                        <h4>Evaluation</h4>
+                        <p>50 deterministic episodes across all categories. Metrics: mean speed, reward, episode length,
+                            crash rate, and steering jerk per command type.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== RESULTS ====== -->
+    <section class="section section-dark" id="results">
+        <div class="container">
+            <p class="section-label">04 &mdash; Results</p>
+            <h2>Key Findings</h2>
+            <p class="section-desc">Results, training curves, and demo videos will be available after the final training
+                run is complete.</p>
+            <div class="results-grid">
+                <div class="result-card">
+                    <span class="result-value">&mdash;</span>
+                    <span class="result-label">Avg Speed (Aggressive)</span>
+                </div>
+                <div class="result-card">
+                    <span class="result-value">&mdash;</span>
+                    <span class="result-label">Avg Speed (Conservative)</span>
+                </div>
+                <div class="result-card">
+                    <span class="result-value">&mdash;</span>
+                    <span class="result-label">Crash Rate</span>
+                </div>
+                <div class="result-card">
+                    <span class="result-value">&mdash;</span>
+                    <span class="result-label">Command Adherence</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== COMMANDS ====== -->
+    <section class="section" id="commands">
+        <div class="container">
+            <p class="section-label">05 &mdash; Commands</p>
+            <h2>Language Vocabulary</h2>
+            <p class="section-desc">The agent responds to 24 commands across 4 behavioral categories.</p>
+            <div class="commands-grid">
+                <div class="cmd-category cmd-aggressive">
+                    <h4>Aggressive</h4>
+                    <ul>
+                        <li>&ldquo;Push hard and go fast&rdquo;</li>
+                        <li>&ldquo;Full attack mode&rdquo;</li>
+                        <li>&ldquo;Overtake now&rdquo;</li>
+                        <li>&ldquo;Maximum speed on the straight&rdquo;</li>
+                        <li>&ldquo;Aggressive braking into the corner&rdquo;</li>
+                        <li>&ldquo;Close the gap quickly&rdquo;</li>
+                    </ul>
+                </div>
+                <div class="cmd-category cmd-conservative">
+                    <h4>Conservative</h4>
+                    <ul>
+                        <li>&ldquo;Conserve tires&rdquo;</li>
+                        <li>&ldquo;Save energy and drive smoothly&rdquo;</li>
+                        <li>&ldquo;Cruise at a steady pace&rdquo;</li>
+                        <li>&ldquo;Easy on the brakes&rdquo;</li>
+                        <li>&ldquo;Smooth steering inputs only&rdquo;</li>
+                        <li>&ldquo;No unnecessary risks&rdquo;</li>
+                    </ul>
+                </div>
+                <div class="cmd-category cmd-defensive">
+                    <h4>Defensive</h4>
+                    <ul>
+                        <li>&ldquo;Defend the inside line&rdquo;</li>
+                        <li>&ldquo;Block the opponent behind&rdquo;</li>
+                        <li>&ldquo;Hold your position&rdquo;</li>
+                        <li>&ldquo;Cover the racing line&rdquo;</li>
+                        <li>&ldquo;Stay tight on the apex&rdquo;</li>
+                        <li>&ldquo;Do not let them pass&rdquo;</li>
+                    </ul>
+                </div>
+                <div class="cmd-category cmd-neutral">
+                    <h4>Neutral</h4>
+                    <ul>
+                        <li>&ldquo;Follow the racing line&rdquo;</li>
+                        <li>&ldquo;Maintain current gap&rdquo;</li>
+                        <li>&ldquo;Steady pace&rdquo;</li>
+                        <li>&ldquo;Drive normally&rdquo;</li>
+                        <li>&ldquo;Keep a consistent rhythm&rdquo;</li>
+                        <li>&ldquo;Standard driving&rdquo;</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== DOWNLOADS ====== -->
+    <section class="section section-dark" id="downloads">
+        <div class="container">
+            <p class="section-label">06 &mdash; Resources</p>
+            <h2>Downloads &amp; Links</h2>
+            <div class="downloads-grid">
+                <a href="report.pdf" class="download-card" download>
+                    <div class="download-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                    </div>
+                    <h4>Report</h4>
+                    <p>Full technical report (PDF)</p>
+                </a>
+                <a href="presentation.pdf" class="download-card" download>
+                    <div class="download-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                    </div>
+                    <h4>Presentation</h4>
+                    <p>Slide deck (PDF)</p>
+                </a>
+                <a href="https://github.com/" target="_blank" class="download-card">
+                    <div class="download-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                        </svg>
+                    </div>
+                    <h4>Source Code</h4>
+                    <p>GitHub repository</p>
+                </a>
+                <a href="source.zip" class="download-card" download>
+                    <div class="download-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                    </div>
+                    <h4>Source (ZIP)</h4>
+                    <p>Download source code</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== FOOTER ====== -->
+    <footer class="footer">
+        <div class="container footer-inner">
+            <div class="footer-left">
+                <span class="footer-logo">DriveLLM</span>
+                <p>Language-Conditioned High-Speed Autonomous Racing</p>
+            </div>
+            <div class="footer-right">
+                <p>Vasilis K. &mdash; February 2026</p>
+                <p class="footer-muted">Semester Project &middot; Autonomous Agents</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

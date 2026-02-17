@@ -368,22 +368,35 @@ The 128-dimensional output serves as input to PPO's \textbf{actor head}
 The agent outputs two continuous actions:
 \begin{itemize}
     \item \textbf{Steering:} $\delta \in [-1, 1]$ — Full left to full right
-    \item \textbf{Throttle/Brake:} $v \in [-1, 1]$ — Negative values apply braking
+    \item \textbf{Throttle:} $v \in [-1, 1]$ — Remapped internally to
+        $[0.3, 1.0]$ via $\theta = 0.3 + \frac{v + 1}{2} \cdot 0.7$
 \end{itemize}
+
+The throttle remapping ensures the vehicle \textbf{always moves forward}
+with at least 30\% throttle. This is a deliberate design choice for a
+racing agent: speed modulation is achieved through throttle variation
+(30--100\%) rather than explicit braking. The vehicle decelerates through
+reduced throttle and CARLA's built-in physics (air drag, tyre friction).
+This prevents the agent from discovering a degenerate ``stand still''
+strategy and ensures meaningful exploration of high-speed driving.
 
 \subsection{Reward Design}
 \label{sec:reward}
 
 The reward function is the critical component that enables
-language-conditioned behaviour. It consists of five terms, each weighted
-by base values that can be \textbf{overridden per command category}:
+language-conditioned behaviour. It consists of \textbf{seven terms},
+each weighted by base values that can be \textbf{overridden per command
+category}. The design philosophy prioritises speed: standing still is
+the worst outcome, crashing is a moderate penalty, and driving fast is
+the dominant reward signal.
 
 \begin{equation}
 \label{eq:reward}
 r_t = \begin{cases}
     r_{\text{collision}} & \text{if collision} \\[0.5em]
-    w_p \cdot r_{\text{progress}} + w_s \cdot r_{\text{speed}} -
-    w_m \cdot r_{\text{smooth}} - w_l \cdot r_{\text{lane}} & \text{otherwise}
+    w_p \cdot r_{\text{progress}} + w_s \cdot r_{\text{speed}} +
+    r_{\text{idle}} + r_{\text{bonus}} - w_m \cdot r_{\text{smooth}} -
+    w_l \cdot r_{\text{lane}} & \text{otherwise}
 \end{cases}
 \end{equation}
 
@@ -395,26 +408,46 @@ r_t = \begin{cases}
         \[
         r_{\text{progress}} = d_t - d_{t-1}
         \]
-        where $d_t$ is the cumulative distance traveled.
+        where $d_t$ is the cumulative distance traveled ($w_p = 2.0$).
 
     \item \textbf{Speed Reward} ($r_{\text{speed}}$): Normalised speed
-        incentive:
+        incentive (\textbf{dominant term}, $w_s = 3.0$, up to 5.0 for
+        aggressive):
         \[
         r_{\text{speed}} = \frac{v_t}{v_{\max}}
         \]
         where $v_{\max} = 40$ m/s ($\approx$144 km/h).
 
+    \item \textbf{Idle Penalty} ($r_{\text{idle}}$): Harsh per-step
+        penalty for standing still, preventing the degenerate ``don't
+        move'' strategy:
+        \[
+        r_{\text{idle}} = \begin{cases}
+            -3.0 & \text{if } v_t < 2.0 \text{ m/s} \\
+            0 & \text{otherwise}
+        \end{cases}
+        \]
+
+    \item \textbf{Speed Bonus} ($r_{\text{bonus}}$): Extra reward for
+        reaching racing speeds ($>$50\% of $v_{\max}$, i.e.\ $>$72 km/h):
+        \[
+        r_{\text{bonus}} = w_b \cdot \max\!\left(0,\;
+            \frac{v_t}{v_{\max}} - 0.5\right)
+        \]
+        where $w_b = 2.0$ (up to 4.0 for aggressive commands).
+
     \item \textbf{Smoothness Penalty} ($r_{\text{smooth}}$): Penalises
-        jerky control inputs:
+        jerky control inputs ($w_m = 0.1$, minimal for racing):
         \[
         r_{\text{smooth}} = |\delta_t - \delta_{t-1}| + 0.5 \cdot |a_t - a_{t-1}|
         \]
 
     \item \textbf{Lane Deviation Penalty} ($r_{\text{lane}}$): Penalises
-        deviation from the lane centre.
+        deviation from the lane centre ($w_l = 0.1$).
 
-    \item \textbf{Collision Penalty:} Immediate reward of $-100$,
-        terminating further reward computation.
+    \item \textbf{Collision Penalty:} Immediate reward of $-15$
+        (category-dependent: $-5$ for aggressive, $-25$ for
+        conservative), terminating further reward computation.
 \end{enumerate}
 
 \subsubsection{Command-Specific Weight Modifiers}
@@ -426,31 +459,34 @@ overrides specific base weights to shape distinct driving behaviours:
 \begin{table}[H]
 \centering
 \caption{Reward weight modifiers by command category. Modified values
-shown in \textbf{bold}; unmodified weights use default values.}
+shown in \textbf{bold}; unmodified weights use default (neutral) values.}
 \label{tab:reward_modifiers}
-\begin{tabular}{@{}lcccc@{}}
+\begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} \\
+\textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
 \midrule
-$w_s$ (speed)         & 0.5 & \textbf{1.5} & \textbf{0.2} & \textbf{0.3} \\
-$w_m$ (smoothness)    & 0.3 & \textbf{0.1} & \textbf{1.0} & 0.3 \\
-$w_l$ (lane dev.)     & 0.2 & 0.2          & 0.2          & \textbf{0.8} \\
-$w_p$ (progress)      & 1.0 & 1.0          & 1.0          & 1.0 \\
+$w_s$ (speed)              & 3.0   & \textbf{5.0}   & \textbf{1.5}   & \textbf{2.0}   & 3.0 \\
+$w_m$ (smoothness)         & 0.1   & \textbf{0.05}  & \textbf{0.5}   & 0.1            & 0.1 \\
+$w_l$ (lane dev.)          & 0.1   & 0.1            & 0.1            & \textbf{0.5}   & 0.1 \\
+$w_b$ (speed bonus)        & 2.0   & \textbf{4.0}   & \textbf{1.0}   & \textbf{1.5}   & 2.0 \\
+$r_{\text{crash}}$         & $-15$ & \textbf{$-5$}  & \textbf{$-25$} & \textbf{$-20$} & $-15$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \noindent\textbf{Design rationale:}
 \begin{itemize}
-    \item \textbf{Aggressive:} High speed weight (1.5$\times$), minimal
-        smoothness penalty — encourages fast, dynamic driving.
-    \item \textbf{Conservative:} Low speed weight (0.2$\times$), high
-        smoothness penalty (1.0) — rewards smooth, energy-efficient
-        driving.
-    \item \textbf{Defensive:} High lane deviation weight (0.8) — strongly
-        penalises leaving the optimal racing line, encouraging position
-        holding.
-    \item \textbf{Neutral:} Uses all default weights — balanced driving.
+    \item \textbf{Aggressive:} Maximum speed weight ($5.0$), quadruple
+        speed bonus, minimal collision penalty ($-5$) — the agent is
+        incentivised to go as fast as possible, accepting crash risk.
+    \item \textbf{Conservative:} Low speed weight ($1.5$), high
+        smoothness penalty ($0.5$), harsh collision penalty ($-25$) —
+        rewards smooth, cautious driving with strong crash avoidance.
+    \item \textbf{Defensive:} Moderate speed ($2.0$), high lane deviation
+        weight ($0.5$) — strongly penalises leaving the racing line,
+        encouraging disciplined position holding.
+    \item \textbf{Neutral:} Uses all default weights — balanced driving
+        that neither takes excessive risks nor drives overly cautiously.
 \end{itemize}
 
 \subsection{Command Compliance Metrics}
@@ -705,8 +741,8 @@ Python              & 3.8 (conda environment) \\
 PyTorch             & 2.x with CUDA \\
 RL Framework        & Stable-Baselines3 \\
 CARLA Mode          & Headless (OpenGL, RenderOffScreen) \\
-Training Speed      & $\sim$255 it/s \\
-Total Training Time & $\sim$2.2 hours \\
+Training Speed      & $\sim$175 it/s \\
+Total Training Time & $\sim$3.2 hours \\
 \bottomrule
 \end{tabular}
 \end{table}
