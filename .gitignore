@@ -1,9 +1,13 @@
 # Checkpoint and Log Files
 checkpoints/
 logs/
-
+screenshots/
+recordings/
 .DS_Store
-
+CONTEXT_TRANSFER.md
+guides.sh
+presentation/site/screenshot.png
+presentation/site/video.mp4
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

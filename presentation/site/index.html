@@ -274,9 +274,20 @@
             gap: 0.8rem;
         }
 
+        .dl-grid> :last-child {
+            grid-column: span 2;
+            width: calc(50% - 0.4rem);
+            margin: 0 auto;
+        }
+
         @media (max-width: 640px) {
             .dl-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .dl-grid> :last-child {
+                grid-column: auto;
+                width: auto;
             }
         }
 
@@ -396,6 +407,29 @@
             font-size: 0.85rem;
         }
 
+        /* — Hero image — */
+        .hero-img {
+            margin: 0 -1.5rem;
+            padding: 2.5rem 0;
+            border-bottom: 1px solid #161616;
+        }
+
+        .hero-img img {
+            width: 94%;
+            margin: 0 auto;
+            border-radius: 8px;
+            border: 1px solid #1a1a1a;
+            display: block;
+        }
+
+        .hero-img .caption {
+            max-width: 92%;
+            margin: 0.6rem auto 0;
+            padding: 0;
+            font-size: 0.78rem;
+            color: #555;
+        }
+
         /* — Contact — */
         .contact {
             font-size: 0.82rem;
@@ -447,14 +481,20 @@
             <div class="contact">
                 <strong style="color:#ccc;">Vasileios Karavanas</strong><br>
                 Student ID: 2021030132<br>
-                <a href="mailto:vkaravanas1@tuc.gr">vkaravanas1@tuc.gr</a> · February 2026
+                <a href="mailto:vkaravanas1@tuc.gr">vkaravanas1@tuc.gr</a>
             </div>
             <div class="links">
                 <a href="report.pdf" download>Report (PDF)</a>
                 <a href="presentation.pdf" download>Presentation (PDF)</a>
-                <a href="https://github.com/" target="_blank">GitHub ↗</a>
                 <a href="source.zip" download>Source Code (ZIP)</a>
             </div>
+        </div>
+
+        <!-- Hero image — screenshot -->
+        <div class="hero-img">
+            <img src="screenshot.png" alt="DriveLLM agent driving in CARLA">
+            <p class="caption">The trained agent driving on Town04 highway, responding to a natural language command in
+                real time.</p>
         </div>
 
         <!-- About -->
@@ -597,22 +637,12 @@
         <!-- Demo -->
         <section>
             <h2>Demo</h2>
-            <p>Screenshots and recordings from the trained agent driving in CARLA.</p>
+            <p>A recorded episode showing the agent responding to different command categories in CARLA.</p>
 
             <div class="media-item">
-                <h3>Screenshot</h3>
-                <!-- Replace the placeholder below with: <img src="screenshot.png" alt="DriveLLM agent driving in CARLA"> -->
-                <div class="media-placeholder">screenshot.png — add after recording</div>
-                <p class="caption">The agent driving on Town04 (highway) with HUD overlay showing the active command,
-                    speed, and steering.</p>
-            </div>
-
-            <div class="media-item">
-                <h3>Video</h3>
-                <!-- Replace the placeholder below with: <video src="demo.mp4" controls></video> -->
-                <div class="media-placeholder">demo.mp4 — add after recording</div>
-                <p class="caption">Full episode recording showing the agent responding to different command categories.
-                </p>
+                <video src="video.mp4" controls></video>
+                <p class="caption">Full episode recording with HUD overlay showing the active command, speed, and
+                    steering.</p>
             </div>
         </section>
 
@@ -628,13 +658,9 @@
                     <h3>Presentation</h3>
                     <p>Slide deck (PDF)</p>
                 </a>
-                <a href="https://github.com/" class="dl-item" target="_blank">
-                    <h3>GitHub ↗</h3>
-                    <p>Source code repository</p>
-                </a>
                 <a href="source.zip" class="dl-item" download>
-                    <h3>Source (ZIP)</h3>
-                    <p>Download source code</p>
+                    <h3>Source Code</h3>
+                    <p>Download source code (ZIP)</p>
                 </a>
             </div>
         </section>
@@ -642,7 +668,7 @@
         <!-- Footer -->
         <footer>
             <span>DriveLLM · Vasileios Karavanas · 2021030132</span>
-            <span>Semester Project · Autonomous Agents · February 2026</span>
+            <span>Semester Project · Autonomous Agents</span>
         </footer>
 
     </div>

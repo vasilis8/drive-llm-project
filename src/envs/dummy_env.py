@@ -176,7 +176,7 @@ class DummyCarlaEnv(gym.Env):
                 0.0,  # acceleration placeholder
                 self._steering,
                 0.0,  # yaw_rate placeholder
-                self._distance,
+                0.0,  # lane_deviation placeholder (was distance)
             ],
             dtype=np.float32,
         )

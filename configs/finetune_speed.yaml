@@ -55,7 +55,7 @@ rewards:
   speed_weight: 3.0               # DOMINANT: 6x original (was 0.5)
   smoothness_weight: 0.1          # Minimal smoothness penalty
   collision_penalty: -15.0         # Moderate crash penalty (was -100)
-  lane_deviation_weight: 0.1      # Light lane penalty
+  lane_deviation_weight: 0.5      # Increased from 0.1 to prevent corner cutting
   max_speed: 40.0                 # 40 m/s = 144 km/h
 
   # Anti-idle system
@@ -79,10 +79,10 @@ rewards:
       speed_bonus_weight: 4.0     # Huge bonus for top speeds
     conservative:
       speed_weight: 1.0           # Low incentive for speed
-      smoothness_weight: 0.5      # Smooth, controlled driving
+      smoothness_weight: 0.3      # Reduced from 0.5 to prevent "stopping"
       speed_bonus_weight: 0.5     # Small bonus for speed
     defensive:
-      speed_weight: 2.0           # Moderate speed
+      speed_weight: 2.5           # Increased from 2.0 to avoid crawling
       lane_deviation_weight: 0.5  # Stay on line
       speed_bonus_weight: 1.5     # Moderate speed bonus
     neutral: {}                   # Use all default weights
@@ -106,13 +106,13 @@ training:
   curriculum:
     neutral_from_step: 0          # Phase 1: learn basic driving
     aggressive_from_step: 200_000  # Phase 2: add speed pushing
-    defensive_from_step: 400_000   # Phase 3: add all styles
-    conservative_from_step: 400_000
+    defensive_from_step: 300_000   # Phase 3a: add defensive (moderate speed)
+    conservative_from_step: 500_000 # Phase 3b: add conservative (slow/smooth)
 
   # Logging & checkpointing
   checkpoint_freq: 50_000
-  log_dir: "logs_v2/"
-  checkpoint_dir: "checkpoints_v2/"
+  log_dir: "logs_v4/"
+  checkpoint_dir: "checkpoints_v4/"
 
 # --- Model Architecture ---
 model:

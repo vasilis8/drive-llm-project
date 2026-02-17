@@ -251,7 +251,9 @@ class CarlaEnv(gym.Env):
 
     def _get_vehicle_state(self) -> Dict[str, float]:
         """Extract vehicle state from CARLA."""
+        import carla
         velocity = self._vehicle.get_velocity()
+        location = self._vehicle.get_location()
         speed = math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
 
         acceleration = self._vehicle.get_acceleration()
@@ -265,8 +267,31 @@ class CarlaEnv(gym.Env):
         angular_velocity = self._vehicle.get_angular_velocity()
         yaw_rate = angular_velocity.z  # rad/s
 
-        # Update distance traveled
-        location = self._vehicle.get_location()
+        # ── Calculate Lane Deviation ─────────────────────────────
+        # Find nearest waypoint on the center of the driving lane
+        map = self._world.get_map()
+        waypoint = map.get_waypoint(location, project_to_road=True, lane_type=carla.LaneType.Driving)
+    
+        if waypoint:
+            # Vector from waypoint to vehicle
+            wp_loc = waypoint.transform.location
+            vec_wp_to_veh = np.array([location.x - wp_loc.x, location.y - wp_loc.y])
+            
+            # Waypoint forward vector
+            wp_fwd = waypoint.transform.get_forward_vector()
+            vec_wp_fwd = np.array([wp_fwd.x, wp_fwd.y])
+            
+            # Waypoint right vector (for signed deviation)
+            # rotate forward vector -90 deg (2D cross product logic)
+            vec_wp_right = np.array([vec_wp_fwd[1], -vec_wp_fwd[0]])
+            
+            # Project vehicle offset onto right vector
+            # Positive = Right of center, Negative = Left of center
+            lane_deviation = float(np.dot(vec_wp_to_veh, vec_wp_right))
+        else:
+            lane_deviation = 0.0
+
+        # ── Update Distance Traveled (For Reward Only) ───────────
         if self._prev_location is not None:
             dx = location.x - self._prev_location.x
             dy = location.y - self._prev_location.y
@@ -278,6 +303,7 @@ class CarlaEnv(gym.Env):
             "acceleration": accel_magnitude,
             "steering": steering,
             "yaw_rate": yaw_rate,
+            "lane_deviation": lane_deviation,
             "distance_traveled": self._distance_traveled,
         }
 
@@ -434,7 +460,7 @@ class CarlaEnv(gym.Env):
                 vs["acceleration"],
                 vs["steering"],
                 vs["yaw_rate"],
-                vs["distance_traveled"],
+                vs["lane_deviation"],  # Replaced distance_traveled (non-stationary)
             ], dtype=np.float32)
         elif self._vehicle is not None:
             # Fallback for reset() — called before any step()
@@ -444,7 +470,7 @@ class CarlaEnv(gym.Env):
                 vs["acceleration"],
                 vs["steering"],
                 vs["yaw_rate"],
-                vs["distance_traveled"],
+                vs["lane_deviation"],  # Replaced distance_traveled (non-stationary)
             ], dtype=np.float32)
         else:
             vehicle_state = np.zeros(self.vehicle_state_dim, dtype=np.float32)

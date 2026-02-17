@@ -465,11 +465,11 @@ shown in \textbf{bold}; unmodified weights use default (neutral) values.}
 \toprule
 \textbf{Weight} & \textbf{Default} & \textbf{Aggressive} & \textbf{Conservative} & \textbf{Defensive} & \textbf{Neutral} \\
 \midrule
-$w_s$ (speed)              & 3.0   & \textbf{5.0}   & \textbf{1.5}   & \textbf{2.0}   & 3.0 \\
-$w_m$ (smoothness)         & 0.1   & \textbf{0.05}  & \textbf{0.5}   & 0.1            & 0.1 \\
-$w_l$ (lane dev.)          & 0.1   & 0.1            & 0.1            & \textbf{0.5}   & 0.1 \\
-$w_b$ (speed bonus)        & 2.0   & \textbf{4.0}   & \textbf{1.0}   & \textbf{1.5}   & 2.0 \\
-$r_{\text{crash}}$         & $-15$ & \textbf{$-5$}  & \textbf{$-25$} & \textbf{$-20$} & $-15$ \\
+$w_s$ (speed)              & 3.0   & \textbf{6.0}   & \textbf{1.0}   & \textbf{2.5}   & 3.0 \\
+$w_m$ (smoothness)         & 0.1   & \textbf{0.05}  & \textbf{0.3}   & 0.1            & 0.1 \\
+$w_l$ (lane dev.)          & 0.5   & 0.1            & 0.1            & \textbf{0.5}   & 0.5 \\
+$w_b$ (speed bonus)        & 2.0   & \textbf{4.0}   & \textbf{0.5}   & \textbf{1.5}   & 2.0 \\
+$r_{\text{crash}}$         & $-15$ & $-15$          & $-15$          & $-15$          & $-15$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -627,6 +627,8 @@ LiDAR Range         & 50 m \\
 LiDAR Angular Bins  & 1080 \\
 LiDAR Channels      & 1 (2D plane) \\
 Rendering Mode      & Headless (RenderOffScreen) \\
+Hardware            & NVIDIA RTX 4090 (RunPod) \\
+Training Duration   & $\sim$3 hours (2M steps) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -687,25 +689,25 @@ categories during training.}
 \toprule
 \textbf{Phase} & \textbf{Steps} & \textbf{Active Categories} \\
 \midrule
-Phase 1 & 0 – 200K    & Neutral only \\
-Phase 2 & 200K – 400K & Neutral + Aggressive \\
-Phase 3 & 400K – 2M   & All four categories \\
+Phase 1 & 0 -- 200K     & Neutral only \\
+Phase 2 & 200K -- 300K   & Neutral + Aggressive \\
+Phase 3a & 300K -- 500K  & + Defensive (staggered start) \\
+Phase 3b & 500K -- 2M    & + Conservative (final addition) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \noindent\textbf{Curriculum rationale:}
 \begin{itemize}
-    \item \textbf{Phase 1 (Neutral):} The agent first learns basic
-        driving: track following, collision avoidance, and speed
-        management. This provides a stable foundation.
-    \item \textbf{Phase 2 (+Aggressive):} The most behaviourally
-        contrasting category is introduced, forcing the agent to begin
-        differentiating its policy based on command embeddings.
-    \item \textbf{Phase 3 (All):} Conservative and defensive categories
-        are added simultaneously, completing the full command space.
-        The agent has sufficient policy flexibility from Phase 2 to
-        absorb these related but distinct strategies.
+    \item \textbf{Phase 1 (Neutral):} The agent learns basic driving:
+        track following and collision avoidance.
+    \item \textbf{Phase 2 (+Aggressive):} The most contrasting category
+        (high speed) is introduced to force policy differentiation.
+    \item \textbf{Phase 3a (+Defensive):} Defensive commands are added at
+        300k steps to introduce moderate speed and tight lane adherence.
+    \item \textbf{Phase 3b (+Conservative):} Conservative commands are
+        delayed until 500k steps to prevent early convergence to
+        degenerate low-speed strategies.
 \end{itemize}
 
 The curriculum is implemented via the \texttt{CurriculumCallback}, which

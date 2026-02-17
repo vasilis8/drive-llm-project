@@ -14,6 +14,8 @@ import yaml
 from pathlib import Path
 
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.monitor import Monitor
 
 from src.models.instruction_encoder import InstructionEncoder
 from src.models.policy import create_ppo_agent
@@ -95,6 +97,20 @@ def train(config_path: str, use_dummy: bool = False, resume_from: str = None):
     print(f"Creating environment (dummy={use_dummy})...")
     env = create_env(config, use_dummy=use_dummy, command_manager=command_manager)
 
+    # Wrap with Monitor for rollout metrics
+    env = Monitor(env, filename=os.path.join(log_dir, "monitor.csv"))
+
+    # Wrap in VecEnv and VecNormalize to handle input scaling
+    env = DummyVecEnv([lambda: env])
+    env = VecNormalize(
+        env,
+        norm_obs=True,
+        norm_reward=True,
+        clip_obs=10.0,
+        gamma=training_cfg.get("gamma", 0.99),
+    )
+    print("Wrapped environment in VecNormalize.")
+
     # ── PPO Agent ─────────────────────────────────────────────
     if resume_from:
         from stable_baselines3 import PPO
@@ -135,6 +151,8 @@ def train(config_path: str, use_dummy: bool = False, resume_from: str = None):
     # ── Save final model ──────────────────────────────────────
     final_path = os.path.join(checkpoint_dir, "drive_llm_final")
     agent.save(final_path)
+    # Save normalization stats
+    env.save(os.path.join(checkpoint_dir, "drive_llm_final_vecnormalize.pkl"))
     print(f"Training complete! Final model saved to {final_path}")
 
     env.close()
