@@ -1,10 +1,12 @@
 # ============================================================
-# Language-Conditioned Racing Agent — FINAL Training Config
+# Language-Conditioned Racing Agent — Run 7 Training Config
 # ============================================================
-# Fresh training from scratch with speed-focused rewards.
-# Target: Agent racing at ~100 km/h with command differentiation.
-# Run 6: No Curriculum (All commands active from Step 0).
-# Duration: ~2.5 hrs for 2M steps.
+# Strategy: "Stabilized Speed"
+# Changes from Run 6:
+# 1. Lower Learning Rate (1.5e-4) to prevent policy collapse.
+# 2. Higher Entropy Coeff (0.02) to maintain exploration.
+# 3. Same "No Curriculum" approach.
+# Target: Regain the 1100+ reward of Run 6 but KEEP it.
 
 # --- CARLA Server ---
 carla:
@@ -47,68 +49,60 @@ action:
   throttle_range: [-1.0, 1.0]
 
 # --- Reward Design (SPEED-FOCUSED) ---
-# Philosophy: Make standing still the WORST outcome, driving fast
-# the BEST outcome, and crashing a moderate penalty (so the agent
-# prefers "fast & risky" over "slow & safe").
 rewards:
   # Core weights
-  progress_weight: 2.0            # Reward forward movement
-  speed_weight: 3.0               # DOMINANT: 6x original (was 0.5)
-  smoothness_weight: 0.1          # Minimal smoothness penalty
-  collision_penalty: -15.0         # Moderate crash penalty (was -100)
-  lane_deviation_weight: 0.5      # Increased from 0.1 to prevent corner cutting
-  max_speed: 40.0                 # 40 m/s = 144 km/h
+  progress_weight: 2.0
+  speed_weight: 3.0
+  smoothness_weight: 0.1
+  collision_penalty: -25.0         # CHANGED: -15.0 -> -25.0 (Stronger crash penalty)
+  lane_deviation_weight: 0.5
+  max_speed: 40.0
 
   # Anti-idle system
-  min_speed_threshold: 2.0        # Below 2 m/s = "standing still"
-  idle_penalty: -3.0              # -3.0 per step if below threshold
+  min_speed_threshold: 2.0
+  idle_penalty: -3.0
 
   # High-speed bonus
-  speed_bonus_threshold: 0.5      # Bonus kicks in above 20 m/s (72 km/h)
-  speed_bonus_weight: 2.0         # Extra reward for racing speeds
+  speed_bonus_threshold: 0.5
+  speed_bonus_weight: 2.0
 
-  # Alive bonus — rewards surviving each step (incentivises long episodes)
-  alive_bonus: 0.5                # +0.5 per step survived
+  # Alive bonus
+  alive_bonus: 0.5
 
   # ── Per-command modifiers ──────────────────────────────────
-  # Differentiation via speed/smoothness weights ONLY.
-  # Collision penalty is the SAME for all categories (-15).
   command_modifiers:
     aggressive:
-      speed_weight: 6.0           # 6x base → MUST GO FAST
-      smoothness_weight: 0.05     # Ignore smoothness
-      speed_bonus_weight: 4.0     # Huge bonus for top speeds
+      speed_weight: 5.0           # CHANGED: 6.0 -> 5.0 (Less suicidal)
+      smoothness_weight: 0.1      # CHANGED: 0.05 -> 0.1 (More stable)
+      speed_bonus_weight: 4.0
     defensive:
-      speed_weight: 2.5           # Increased from 2.0 to avoid crawling
-      lane_deviation_weight: 0.5  # Stay on line
-      speed_bonus_weight: 1.5     # Moderate speed bonus
-    neutral: {}                   # Use all default weights
+      speed_weight: 2.5
+      lane_deviation_weight: 0.5
+      speed_bonus_weight: 1.5
+    neutral: {}
 
 # --- Training ---
 training:
   algorithm: "PPO"
-  total_timesteps: 2_000_000      # Full 2M run (~2.5 hrs)
-  learning_rate: 3.0e-4
+  total_timesteps: 2_000_000
+  learning_rate: 1.5e-4           # CHANGED: 3e-4 -> 1.5e-4 (More stability)
   n_steps: 2048
   batch_size: 64
   n_epochs: 10
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
-  ent_coef: 0.01                  # Standard entropy
+  ent_coef: 0.02                  # CHANGED: 0.01 -> 0.02 (Force exploration)
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Curriculum: Removed for Run 6 (Train on all commands from start)
-  # curriculum:
-  #   neutral_from_step: 0
-  #   aggressive_from_step: 200_000
-  #   defensive_from_step: 400_000
+  # Curriculum: Removed (Train on all commands from start)
+  # curriculum: {}
 
   # Logging & checkpointing
   checkpoint_freq: 50_000
-  log_dir: "logs_v6/"
-  checkpoint_dir: "checkpoints_v6/"
+  log_dir: "logs_v7/"             # CHANGED
+  checkpoint_dir: "checkpoints_v7/" # CHANGED
 
 # --- Model Architecture ---
 model:
