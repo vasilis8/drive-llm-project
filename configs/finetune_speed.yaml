@@ -3,6 +3,7 @@
 # ============================================================
 # Fresh training from scratch with speed-focused rewards.
 # Target: Agent racing at ~100 km/h with command differentiation.
+# Run 6: No Curriculum (All commands active from Step 0).
 # Duration: ~2.5 hrs for 2M steps.
 
 # --- CARLA Server ---
@@ -98,16 +99,16 @@ training:
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Curriculum: learn to DRIVE first, then differentiate
-  curriculum:
-    neutral_from_step: 0          # Phase 1: learn basic driving
-    aggressive_from_step: 200_000  # Phase 2: add speed pushing
-    defensive_from_step: 400_000   # Phase 3: Defensive only (Lane keeping)
+  # Curriculum: Removed for Run 6 (Train on all commands from start)
+  # curriculum:
+  #   neutral_from_step: 0
+  #   aggressive_from_step: 200_000
+  #   defensive_from_step: 400_000
 
   # Logging & checkpointing
   checkpoint_freq: 50_000
-  log_dir: "logs_v5/"
-  checkpoint_dir: "checkpoints_v5/"
+  log_dir: "logs_v6/"
+  checkpoint_dir: "checkpoints_v6/"
 
 # --- Model Architecture ---
 model:
