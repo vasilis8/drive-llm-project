@@ -291,11 +291,21 @@ class CarlaEnv(gym.Env):
         else:
             lane_deviation = 0.0
 
-        # ── Update Distance Traveled (For Reward Only) ───────────
-        if self._prev_location is not None:
-            dx = location.x - self._prev_location.x
-            dy = location.y - self._prev_location.y
-            self._distance_traveled += math.sqrt(dx ** 2 + dy ** 2)
+        # ── Update Distance Traveled (Projected on Lane) ───────────
+        if self._prev_location is not None and waypoint is not None:
+            move_vec = np.array([location.x - self._prev_location.x, 
+                                location.y - self._prev_location.y])
+
+            # Get track direction
+            wp_fwd = waypoint.transform.get_forward_vector()
+            lane_dir = np.array([wp_fwd.x, wp_fwd.y])
+
+            # Dot product: Only rewards movement PARALLEL to the track
+            # Spinning/sliding sideways gives near-zero reward
+            forward_progress = np.dot(move_vec, lane_dir)
+
+            self._distance_traveled += forward_progress
+
         self._prev_location = location
 
         return {
@@ -307,21 +317,23 @@ class CarlaEnv(gym.Env):
             "distance_traveled": self._distance_traveled,
         }
 
-    def _apply_action(self, action: np.ndarray):
-        """Apply control action to the CARLA vehicle.
 
+    def _apply_action(self, action: np.ndarray):
+        """Apply control action (NO BRAKES version).
+        
         Action mapping:
-            action[0] → steering in [-1, 1]
-            action[1] → throttle, remapped from [-1, 1] to [0.3, 1.0]
-                         The car ALWAYS drives forward (this is racing!)
+            action[0] -> steering in [-1, 1]
+            action[1] -> throttle in [-1, 1] mapped to [0.3, 1.0]
+            
+        The car ALWAYS moves forward. Brake is permanently disabled.
         """
         import carla
 
         steering = float(np.clip(action[0], -1.0, 1.0))
         raw_throttle = float(np.clip(action[1], -1.0, 1.0))
 
-        # Remap [-1, 1] → [0.3, 1.0]: car always moves forward
-        # Agent controls speed via throttle modulation, not stopping
+        # Remap [-1, 1] -> [0.3, 1.0]
+        # Even if agent outputs -1.0, it gets 30% throttle.
         min_throttle = 0.3
         max_throttle = 1.0
         throttle = min_throttle + (raw_throttle + 1.0) / 2.0 * (max_throttle - min_throttle)
@@ -329,8 +341,9 @@ class CarlaEnv(gym.Env):
         control = carla.VehicleControl()
         control.steer = steering
         control.throttle = throttle
-        control.brake = 0.0
+        control.brake = 0.0      # <--- Brakes removed
         control.hand_brake = False
+        
         self._vehicle.apply_control(control)
 
     def _cleanup(self):

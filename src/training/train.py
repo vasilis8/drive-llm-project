@@ -100,12 +100,13 @@ def train(config_path: str, use_dummy: bool = False, resume_from: str = None):
     # Wrap with Monitor for rollout metrics
     env = Monitor(env, filename=os.path.join(log_dir, "monitor.csv"))
 
-    # Wrap in VecEnv and VecNormalize to handle input scaling
+    # Wrap in VecEnv and VecNormalize
     env = DummyVecEnv([lambda: env])
+    
     env = VecNormalize(
         env,
-        norm_obs=True,
-        norm_reward=True,
+        norm_obs=False,      
+        norm_reward=True,  
         clip_obs=10.0,
         gamma=training_cfg.get("gamma", 0.99),
     )

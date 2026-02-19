@@ -1,10 +1,7 @@
 # ============================================================
-# Language-Conditioned Racing Agent — Run 8 Training Config
+# Run Final: "Balanced & Corrected"
+# Goal: Working differentiation, No Reward Traps.
 # ============================================================
-# Strategy: "The Golden Mean"
-# Run 6 (Reckless): LR 3e-4, Crash -15. Result: 25 m/s -> Collapse.
-# Run 7 (Scared):   LR 1.5e-4, Crash -25. Result: 6 m/s -> Collapse.
-# Run 8 (Balanced): LR 2e-4, Crash -20. Target: 18-20 m/s Stable.
 
 # --- CARLA Server ---
 carla:
@@ -15,7 +12,7 @@ carla:
   weather: "ClearNoon"
   fixed_delta_seconds: 0.05
 
-# --- Sensors ---
+# --- Sensors & Vehicle ---
 sensors:
   lidar:
     channels: 1
@@ -25,84 +22,85 @@ sensors:
     upper_fov: 0.0
     lower_fov: 0.0
     n_beams: 1080
-    position:
-      x: 0.0
-      y: 0.0
-      z: 2.4
+    position: {x: 0.0, y: 0.0, z: 2.4}
 
-# --- Vehicle ---
 vehicle:
   blueprint: "vehicle.tesla.model3"
   max_speed: 40.0
 
-# --- Observation Space ---
+# --- Observation & Action ---
 observation:
   lidar_dim: 1080
   command_dim: 384
   vehicle_state_dim: 5
 
-# --- Action Space ---
 action:
   steering_range: [-1.0, 1.0]
   throttle_range: [-1.0, 1.0]
 
-# --- Reward Design (BALANCED) ---
+# --- Rewards (THE FIX) ---
 rewards:
-  # Core weights
-  progress_weight: 2.0
-  speed_weight: 3.0
+  # 1. THE SAFETY NET: Collision is -60. 
+  # High enough to prevent suicide runs, but allows calculated risks.
+  collision_penalty: -60.0
+  
+  # 2. BASELINE (Neutral): Balanced driving
+  progress_weight: 1.0
+  speed_weight: 2.0             
   smoothness_weight: 0.1
-  collision_penalty: -20.0        # BALANCED: -15 (R6) < -20 < -25 (R7)
-  lane_deviation_weight: 0.5
+  lane_deviation_weight: 0.5    
   max_speed: 40.0
-
-  # Anti-idle system
   min_speed_threshold: 2.0
   idle_penalty: -3.0
+  alive_bonus: 0.2
 
-  # High-speed bonus
-  speed_bonus_threshold: 0.5
-  speed_bonus_weight: 2.0
-
-  # Alive bonus
-  alive_bonus: 0.5
-
-  # ── Per-command modifiers ──────────────────────────────────
+  # 3. DIFFERENTIATION
   command_modifiers:
     aggressive:
-      speed_weight: 5.5           # BALANCED: 6.0 (R6) > 5.5 > 5.0 (R7)
-      smoothness_weight: 0.05     # Revert to standard (allow some jerk for speed)
-      speed_bonus_weight: 4.0
+      # GOAL: Fast & Loose
+      speed_weight: 6.0           # INCREASED: Strong push for speed
+      speed_bonus_weight: 3.0     # INCREASED: Big bonus for >72km/h
+      lane_deviation_weight: 0.0  # Allowed to use full track width
+      smoothness_weight: 0.0      # Jerky inputs allowed
+      
     defensive:
-      speed_weight: 2.5
-      lane_deviation_weight: 0.5
-      speed_bonus_weight: 1.5
+      # GOAL: Precise & Steady
+      speed_weight: 1.0           
+      speed_bonus_weight: 0.0     
+      lane_deviation_weight: 0.8  # FIX: Reduced from 5.0 to 0.8 (Prevent collapse)
+      smoothness_weight: 0.2      # FIX: Reduced from 0.5 to 0.2
+      
     neutral: {}
 
 # --- Training ---
 training:
   algorithm: "PPO"
-  total_timesteps: 1_000_000      # CHANGED: 2M -> 1M (User request: save time)
-  learning_rate: 2.0e-4           # BALANCED: 3e-4 (R6) > 2e-4 > 1.5e-4 (R7)
+  total_timesteps: 2_000_000
+  learning_rate: 3.0e-4
   n_steps: 2048
   batch_size: 64
   n_epochs: 10
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
-  ent_coef: 0.01                  # Revert to standard (R7's 0.02 might have confused it)
+  ent_coef: 0.01
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Curriculum: Removed
-  # curriculum: {}
+  # CURRICULUM (Shifted Earlier)
+  # Phase 1: Learn to drive (Neutral)
+  # Phase 2: Learn to speed (Aggressive) - Starts earlier to prevent "crawling" habit
+  # Phase 3: Learn precision (Defensive)
+  curriculum:
+    neutral_from_step: 0
+    aggressive_from_step: 150_000  # EARLIER: Force speed exploration sooner
+    defensive_from_step: 400_000   # Standardized
 
-  # Logging & checkpointing
   checkpoint_freq: 50_000
-  log_dir: "logs_v8/"             # CHANGED
-  checkpoint_dir: "checkpoints_v8/" # CHANGED
+  log_dir: "logs_final_fixed/"
+  checkpoint_dir: "checkpoints_final_fixed/"
 
-# --- Model Architecture ---
+# --- Model ---
 model:
   lidar_cnn:
     channels: [64, 128, 256]
@@ -114,8 +112,6 @@ model:
     hidden_dims: [256, 128]
   features_dim: 128
 
-# --- Evaluation ---
 evaluation:
-  n_episodes: 50
+  n_episodes: 20
   deterministic: true
-  save_trajectories: true

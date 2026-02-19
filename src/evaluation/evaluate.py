@@ -1,8 +1,5 @@
 """
 Evaluation module for Language-Conditioned Racing Agent.
-
-Loads a trained model checkpoint and evaluates it against the environment,
-computing per-command-type metrics.
 """
 
 import argparse
@@ -10,10 +7,10 @@ import os
 import json
 import yaml
 import numpy as np
-from collections import defaultdict
 from typing import Dict, List, Optional
 
 from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from src.models.instruction_encoder import InstructionEncoder
 from src.utils.commands import CommandManager, ALL_CATEGORIES
@@ -32,31 +29,14 @@ def evaluate_agent(
     deterministic: bool = True,
     save_results: str = None,
 ) -> Dict:
-    """
-    Evaluate a trained agent across all command categories.
-
-    Args:
-        model_path: Path to saved PPO model.
-        config_path: Path to config YAML.
-        n_episodes: Total episodes to evaluate (distributed across categories).
-        use_dummy: Use DummyCarlaEnv (local) or CarlaEnv (cloud).
-        deterministic: Use deterministic policy.
-        save_results: Path to save results JSON.
-
-    Returns:
-        Dict of metrics per category and overall.
-    """
     config = load_config(config_path)
 
-    # Setup encoder and command manager
     print("Loading encoder...")
     encoder = InstructionEncoder()
     command_manager = CommandManager(encoder=encoder)
 
-    # Create environment
     if use_dummy:
         from src.envs.dummy_env import DummyCarlaEnv
-
         obs_cfg = config.get("observation", {})
         env = DummyCarlaEnv(
             n_lidar_beams=obs_cfg.get("lidar_dim", 1080),
@@ -66,7 +46,6 @@ def evaluate_agent(
         )
     else:
         from src.envs.carla_env import CarlaEnv
-
         env = CarlaEnv(
             carla_config=config.get("carla", {}),
             lidar_config=config.get("sensors", {}).get("lidar", {}),
@@ -75,34 +54,38 @@ def evaluate_agent(
             command_manager=command_manager,
         )
 
-    # Load model
+    # ── THE FIX: Wrap in VecEnv and load Normalization Stats ──
+    env = DummyVecEnv([lambda: env])
+    
+    # Locate the normalization stats saved during training
+    model_dir = os.path.dirname(model_path)
+    vec_norm_path = os.path.join(model_dir, "drive_llm_final_vecnormalize.pkl")
+    
+    if os.path.exists(vec_norm_path):
+        print(f"Loading normalization stats from {vec_norm_path}...")
+        env = VecNormalize.load(vec_norm_path, env)
+        # CRITICAL: Do not update stats or normalize rewards during evaluation
+        env.training = False
+        env.norm_reward = False
+    else:
+        print("WARNING: No VecNormalize stats found! Agent may drive blindly.")
+
     print(f"Loading model from {model_path}...")
     model = PPO.load(model_path, env=env)
 
-    # ── Run evaluation per category ───────────────────────────
     episodes_per_category = max(1, n_episodes // len(ALL_CATEGORIES))
-    results = {
-        "per_category": {},
-        "overall": {},
-    }
+    results = {"per_category": {}, "overall": {}}
 
-    all_rewards = []
-    all_lengths = []
-    all_speeds = []
-    all_collisions = []
+    all_rewards, all_lengths, all_speeds, all_collisions = [], [], [], []
 
     for category in ALL_CATEGORIES:
         print(f"\nEvaluating category: {category}")
-        cat_rewards = []
-        cat_speeds = []
-        cat_lengths = []
+        cat_rewards, cat_speeds, cat_lengths, cat_steering_jerk = [], [], [], []
         cat_collisions = 0
-        cat_steering_jerk = []
 
         for ep in range(episodes_per_category):
-            # Force specific category
             command_manager.allowed_categories = [category]
-            obs, info = env.reset()
+            obs = env.reset()
 
             episode_reward = 0.0
             episode_speeds = []
@@ -111,17 +94,19 @@ def evaluate_agent(
 
             while True:
                 action, _ = model.predict(obs, deterministic=deterministic)
-                obs, reward, terminated, truncated, info = env.step(action)
+                obs, rewards, dones, infos = env.step(action)
+                
+                # VecEnv returns lists, so we take index 0
+                info = infos[0]
 
-                episode_reward += reward
+                episode_reward += rewards[0]
                 episode_speeds.append(info.get("speed", 0.0))
                 step += 1
 
-                # Track steering for jerk computation
                 if "vehicle_state" in obs:
-                    episode_steerings.append(obs["vehicle_state"][2])
+                    episode_steerings.append(obs["vehicle_state"][0][2])
 
-                if terminated or truncated:
+                if dones[0]:
                     break
 
             cat_rewards.append(episode_reward)
@@ -130,22 +115,18 @@ def evaluate_agent(
             if info.get("collision", False):
                 cat_collisions += 1
 
-            # Steering jerk
             if len(episode_steerings) > 1:
                 steerings = np.array(episode_steerings)
                 jerk = np.mean(np.abs(np.diff(steerings)))
                 cat_steering_jerk.append(jerk)
 
-        # Store per-category results
         results["per_category"][category] = {
             "mean_reward": float(np.mean(cat_rewards)),
             "std_reward": float(np.std(cat_rewards)),
             "mean_speed": float(np.mean(cat_speeds)),
             "mean_length": float(np.mean(cat_lengths)),
             "crash_rate": cat_collisions / episodes_per_category,
-            "mean_steering_jerk": float(
-                np.mean(cat_steering_jerk) if cat_steering_jerk else 0.0
-            ),
+            "mean_steering_jerk": float(np.mean(cat_steering_jerk) if cat_steering_jerk else 0.0),
             "n_episodes": episodes_per_category,
         }
 
@@ -159,7 +140,6 @@ def evaluate_agent(
         print(f"  Length: {np.mean(cat_lengths):.0f} steps")
         print(f"  Crash:  {cat_collisions}/{episodes_per_category}")
 
-    # Overall metrics
     results["overall"] = {
         "mean_reward": float(np.mean(all_rewards)),
         "std_reward": float(np.std(all_rewards)),
@@ -173,7 +153,6 @@ def evaluate_agent(
     print(f"Overall: Reward={results['overall']['mean_reward']:.2f}, "
           f"Crash Rate={results['overall']['crash_rate']:.1%}")
 
-    # Save results
     if save_results:
         os.makedirs(os.path.dirname(save_results) or ".", exist_ok=True)
         with open(save_results, "w") as f:

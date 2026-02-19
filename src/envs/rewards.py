@@ -103,6 +103,11 @@ def compute_reward(
     )
     reward -= lane_weight * abs(lane_dev)
 
+    # ── 9. Anti-Spin Penalty ──────────────────────────────────────
+    yaw_rate = abs(vehicle_state["yaw_rate"])
+    if yaw_rate > 1.5: # Threshold for spinning
+        reward -= 2.0 * yaw_rate
+
     return reward
 
 
